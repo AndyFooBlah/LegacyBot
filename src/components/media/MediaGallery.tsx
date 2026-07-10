@@ -22,6 +22,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { MediaItem, StoryEvent } from '../../types';
 import { getMedia, uploadMedia, updateMedia, deleteMedia, getEvents } from '../../services/storage';
+import { MediaImage } from '../shared/ResolvedMedia';
+import { useMediaSrc } from '../../hooks/useMediaSrc';
 
 export const MediaGallery: React.FC = () => {
   const { familyId, dossierId } = useParams<{ familyId: string; dossierId: string }>();
@@ -34,6 +36,7 @@ export const MediaGallery: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null);
+  const selectedSrc = useMediaSrc(selectedItem?.storageUrl);
   const [editingCaption, setEditingCaption] = useState('');
 
   // Upload form state
@@ -212,7 +215,7 @@ export const MediaGallery: React.FC = () => {
               className="group cursor-pointer bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
             >
               {isImage(item.mimeType) ? (
-                <img
+                <MediaImage
                   src={item.storageUrl}
                   alt={item.caption || item.filename}
                   className="w-full h-40 object-cover"
@@ -250,7 +253,7 @@ export const MediaGallery: React.FC = () => {
           <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             {isImage(selectedItem.mimeType) ? (
               <img
-                src={selectedItem.storageUrl}
+                src={selectedSrc ?? undefined}
                 alt={selectedItem.caption || selectedItem.filename}
                 className="w-full max-h-[60vh] object-contain bg-slate-100 rounded-t-3xl"
               />
@@ -259,7 +262,7 @@ export const MediaGallery: React.FC = () => {
                 <div className="text-center">
                   <span className="text-5xl block mb-2">📄</span>
                   <a
-                    href={selectedItem.storageUrl}
+                    href={selectedSrc ?? undefined}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-sm text-indigo-600 hover:underline"

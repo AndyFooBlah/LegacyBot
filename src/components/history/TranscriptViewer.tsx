@@ -29,6 +29,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { useCurrentRoles } from '../../hooks/useFamily';
 import { TranscriptEntry, TranscriptEditHistoryEntry, SessionMetadata, SessionEngagement, SuggestedQuestion, AudioClip } from '../../types';
 import { AudioPlayer } from './AudioPlayer';
+import { MediaAudio } from '../shared/ResolvedMedia';
+import { useMediaSrc } from '../../hooks/useMediaSrc';
 import { getEngagementAssessment, getSuggestedQuestions, saveMessageEdit, saveAudioClip, getAudioClips, deleteAudioClip } from '../../services/storage';
 
 function formatClipTime(seconds: number): string {
@@ -125,6 +127,7 @@ export const TranscriptViewer: React.FC = () => {
   const [entries, setEntries] = useState<TranscriptEntry[]>([]);
   const [editedEntries, setEditedEntries] = useState<TranscriptEntry[] | null>(null);
   const [session, setSession] = useState<SessionMetadata | null>(null);
+  const audioSrc = useMediaSrc(session?.audioUrl);
   const [engagement, setEngagement] = useState<SessionEngagement | null>(null);
   const [suggestions, setSuggestions] = useState<SuggestedQuestion[]>([]);
   const [clips, setClips] = useState<AudioClip[]>([]);
@@ -290,15 +293,15 @@ export const TranscriptViewer: React.FC = () => {
 
       {session?.audioUrl && (
         <AudioPlayer
-          audioUrl={session.audioUrl}
+          audioUrl={audioSrc}
           durationSeconds={session.durationSeconds}
           onCreateClip={async (startSeconds, endSeconds) => {
-            if (!familyId || !dossierId || !sessionId || !user || !session.audioUrl) return;
+            if (!familyId || !dossierId || !sessionId || !user || !audioSrc) return;
             const title = prompt('Name this clip:');
             if (!title) return;
             try {
               // Fetch the full audio and extract the clip range using MediaSource
-              const response = await fetch(session.audioUrl);
+              const response = await fetch(audioSrc);
               const fullBlob = await response.blob();
               // For WebM we store the full blob with time range metadata
               // (true audio slicing requires server-side processing)
@@ -333,7 +336,7 @@ export const TranscriptViewer: React.FC = () => {
           </p>
           {clips.map((clip) => (
             <div key={clip.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
-              <audio src={clip.clipUrl} controls className="h-8 flex-1" />
+              <MediaAudio src={clip.clipUrl} controls className="h-8 flex-1" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-800 truncate">{clip.title}</p>
                 <p className="text-xs text-slate-400">

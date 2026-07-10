@@ -107,13 +107,14 @@ describe('finalizeSession', () => {
 });
 
 describe('archiveAudioToGCS', () => {
-  it('uploads a blob and returns the download URL', async () => {
-    mockStorage.getDownloadURL.mockResolvedValueOnce('https://storage.example.com/audio.webm');
+  it('uploads a blob and returns the storage object path (not a persisted URL)', async () => {
     const blob = new Blob(['audio-data'], { type: 'audio/webm' });
 
-    const url = await archiveAudioToGCS(blob, 'family-1', 'dossier-1', 'session-1');
+    const path = await archiveAudioToGCS(blob, 'family-1', 'dossier-1', 'session-1');
 
-    expect(url).toBe('https://storage.example.com/audio.webm');
+    // Returns the object path — the session doc stores this and a signed URL
+    // is minted on demand, rather than persisting a permanent download URL.
+    expect(path).toBe('family-1/dossier-1/session-1.webm');
     expect(mockStorage.uploadBytes).toHaveBeenCalledTimes(1);
   });
 

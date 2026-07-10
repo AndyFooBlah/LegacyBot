@@ -41,6 +41,7 @@ import { StorytellerProfile } from './StorytellerProfile';
 import { uploadPromptPhoto, getPromptPhotos, deletePromptPhoto, getMiscFacts } from '../../services/storage';
 import { PersonalityMode, VoicePreset, PromptPhoto, MiscFact } from '../../types';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { MediaImage } from '../shared/ResolvedMedia';
 
 export const DossierEditor: React.FC = () => {
   const { familyId, dossierId } = useParams<{ familyId: string; dossierId: string }>();
@@ -494,7 +495,7 @@ export const DossierEditor: React.FC = () => {
             <div className="grid grid-cols-1 gap-3">
               {promptPhotos.map((photo) => (
                 <div key={photo.id} className="flex gap-3 items-start bg-slate-50 rounded-xl border border-slate-100 p-3 group">
-                  <img
+                  <MediaImage
                     src={photo.storageUrl}
                     alt={photo.caption}
                     className="w-20 h-20 object-cover rounded-lg shrink-0"

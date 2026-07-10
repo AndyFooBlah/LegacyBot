@@ -42,6 +42,7 @@ import { getPromptPhotos } from '../../services/storage';
 import { TranscriptFeed } from './TranscriptFeed';
 import { ConnectionStatus, PromptPhoto } from '../../types';
 import { Logo } from '../shared/Logo';
+import { useMediaSrc } from '../../hooks/useMediaSrc';
 
 /**
  * Format an elapsed-seconds count as `M:SS` (or `H:MM:SS` past an hour).
@@ -74,6 +75,7 @@ export const SessionView: React.FC = () => {
   // Prompt photos
   const [promptPhotos, setPromptPhotos] = useState<PromptPhoto[]>([]);
   const [activePhoto, setActivePhoto] = useState<PromptPhoto | null>(null);
+  const activePhotoSrc = useMediaSrc(activePhoto?.storageUrl);
 
   useEffect(() => {
     if (!familyId || !dossierId) return;
@@ -326,7 +328,7 @@ export const SessionView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full overflow-hidden">
             <img
-              src={activePhoto.storageUrl}
+              src={activePhotoSrc ?? undefined}
               alt={activePhoto.caption}
               className="w-full max-h-[60vh] object-contain bg-slate-100"
             />

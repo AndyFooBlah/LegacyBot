@@ -51,6 +51,10 @@ export const RATE_LIMITS = {
   // while bounding a runaway loop or a compromised account.
   invokeGemini: 300,
   embedGemini: 500,
+  // Browsing a media gallery or reviewing sessions can request many signed
+  // URLs; keep this generous (it only mints read URLs for the caller's own
+  // family) while still bounding automated enumeration.
+  getMediaUrl: 2000,
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

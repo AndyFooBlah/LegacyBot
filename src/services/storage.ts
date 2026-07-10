@@ -29,7 +29,7 @@
  *   families/{familyId}/dossiers/{dossierId}/sessions/{sessionId}/transcript/entries
  */
 
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes } from 'firebase/storage';
 import {
   doc,
   setDoc,
@@ -117,7 +117,10 @@ export async function finalizeSession(
  * Uploads a recorded audio blob to Firebase Cloud Storage.
  *
  * The blob is the mixed User+Bot WebM/Opus recording from the MediaRecorder.
- * Returns the public download URL, which is stored on the session document.
+ * Returns the Storage object PATH (not a download URL) — the session document
+ * stores the path, and clients mint a short-lived signed URL on demand via the
+ * getMediaUrl callable. Persisting a getDownloadURL() token here would be a
+ * permanent, unrevocable bearer capability that bypasses Storage rules.
  *
  * Path: {familyId}/{dossierId}/{sessionId}.webm
  */
@@ -134,8 +137,7 @@ export async function archiveAudioToGCS(
     contentType: 'audio/webm;codecs=opus',
   });
 
-  const downloadUrl = await getDownloadURL(storageRef);
-  return downloadUrl;
+  return storagePath;
 }
 
 // ---------------------------------------------------------------------------
@@ -653,12 +655,13 @@ export async function uploadMedia(
   const storageRef = ref(storage, storagePath);
 
   await uploadBytes(storageRef, file, { contentType: file.type });
-  const storageUrl = await getDownloadURL(storageRef);
 
   const colRef = collection(db, 'families', familyId, 'dossiers', dossierId, 'media');
   const item: Omit<MediaItem, 'id'> = {
     filename: file.name,
-    storageUrl,
+    // Stores the Storage object PATH, resolved to a short-lived signed URL on
+    // demand (getMediaUrl). Older docs may hold a legacy https download URL.
+    storageUrl: storagePath,
     mimeType: file.type,
     sizeBytes: file.size,
     caption: meta.caption,
@@ -728,12 +731,12 @@ export async function saveAudioClip(
   const storageRef = ref(storage, storagePath);
 
   await uploadBytes(storageRef, clipBlob, { contentType: 'audio/webm;codecs=opus' });
-  const clipUrl = await getDownloadURL(storageRef);
 
   const colRef = collection(db, 'families', familyId, 'dossiers', dossierId, 'clips');
   const docRef = await addDoc(colRef, {
     ...meta,
-    clipUrl,
+    // Storage object PATH, resolved to a signed URL on demand (getMediaUrl).
+    clipUrl: storagePath,
     createdAt: Timestamp.now(),
   });
   return docRef.id;
@@ -783,11 +786,11 @@ export async function uploadPromptPhoto(
   const storageRef = ref(storage, storagePath);
 
   await uploadBytes(storageRef, file, { contentType: file.type });
-  const storageUrl = await getDownloadURL(storageRef);
 
   const colRef = collection(db, 'families', familyId, 'dossiers', dossierId, 'promptPhotos');
   const item: Omit<PromptPhoto, 'id'> = {
-    storageUrl,
+    // Storage object PATH, resolved to a signed URL on demand (getMediaUrl).
+    storageUrl: storagePath,
     caption,
     uploadedBy: uploaderUid,
     createdAt: Timestamp.now(),

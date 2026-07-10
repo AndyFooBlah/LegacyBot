@@ -54,6 +54,7 @@ import {
   embedTexts,
 } from './embeddings';
 import { enforceRateLimit } from './rateLimit';
+import { parseMediaPathFamilyId } from './mediaPath';
 import { buildCacheWikipediaArticleHandler } from './cacheWikipedia';
 import { buildMintGeminiLiveTokenHandler } from './liveToken';
 import { buildInvokeGeminiHandler } from './invokeGemini';
@@ -1612,6 +1613,41 @@ export const invokeGemini = onCall(
 export const embedGemini = onCall(
   { secrets: [geminiApiKey], timeoutSeconds: 60 },
   buildEmbedGeminiHandler({ apiKey: () => geminiApiKey.value() }),
+);
+
+/**
+ * getMediaUrl — mint a short-lived (2h) signed read URL for a Storage object,
+ * for a caller who is a member of the family that owns it.
+ *
+ * Replaces persisted getDownloadURL() tokens, which were permanent bearer
+ * capabilities that bypassed Storage rules forever. Now clients store only the
+ * object PATH and fetch a fresh, expiring URL on demand; access is re-checked
+ * against live family membership on every mint.
+ */
+export const getMediaUrl = onCall(
+  { timeoutSeconds: 30 },
+  async (request: CallableRequest): Promise<{ url: string }> => {
+    const { path } = (request.data ?? {}) as { path?: string };
+    const familyId = parseMediaPathFamilyId(path);
+    const objectPath = path as string;
+
+    // Membership is the family boundary — a member may access any object under
+    // their family's prefix (within-family access is intentionally open).
+    await verifyFamilyMember(request, familyId);
+    await enforceRateLimit(request.auth!.uid, 'getMediaUrl');
+
+    try {
+      const [url] = await admin.storage().bucket().file(objectPath).getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+      });
+      return { url };
+    } catch (err) {
+      logger.error('[getMediaUrl] failed to sign URL', err);
+      throw new HttpsError('internal', 'Could not generate a media URL.');
+    }
+  },
 );
 
 export const searchContext = onCall(

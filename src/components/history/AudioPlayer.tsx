@@ -26,7 +26,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 interface AudioPlayerProps {
-  audioUrl: string;
+  audioUrl: string | null;
   durationSeconds?: number;
   onCreateClip?: (startSeconds: number, endSeconds: number) => void;
 }
