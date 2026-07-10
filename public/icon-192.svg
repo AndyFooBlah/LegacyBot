@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- LegacyBot app icon — sunset + waveform on white rounded background -->
+  <defs>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <clipPath id="sunClip"><circle cx="96" cy="100" r="46"/></clipPath>
+    <clipPath id="horizon"><rect x="0" y="0" width="192" height="100"/></clipPath>
+  </defs>
+
+  <!-- White rounded background -->
+  <rect width="192" height="192" rx="38" fill="white"/>
+
+  <!-- Sun half -->
+  <g clip-path="url(#horizon)">
+    <circle cx="96" cy="100" r="46" fill="url(#sun)"/>
+    <g clip-path="url(#sunClip)">
+      <rect x="0" y="62" width="192" height="4" fill="white" opacity="0.95"/>
+      <rect x="0" y="72" width="192" height="4.5" fill="white" opacity="0.9"/>
+      <rect x="0" y="82" width="192" height="5" fill="white" opacity="0.85"/>
+      <rect x="0" y="93" width="192" height="6" fill="white" opacity="0.8"/>
+    </g>
+  </g>
+
+  <!-- Horizon -->
+  <line x1="28" y1="100" x2="164" y2="100" stroke="#4338ca" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Waveform -->
+  <g stroke="#6366f1" stroke-width="2" stroke-linecap="round" opacity="0.6">
+    <line x1="34" y1="112" x2="34" y2="118"/>
+    <line x1="42" y1="110" x2="42" y2="120"/>
+    <line x1="50" y1="108" x2="50" y2="122"/>
+    <line x1="58" y1="111" x2="58" y2="119"/>
+    <line x1="66" y1="109" x2="66" y2="121"/>
+    <line x1="74" y1="112" x2="74" y2="118"/>
+    <line x1="82" y1="110" x2="82" y2="120"/>
+    <line x1="90" y1="107" x2="90" y2="123"/>
+    <line x1="98" y1="110" x2="98" y2="120"/>
+    <line x1="106" y1="112" x2="106" y2="118"/>
+    <line x1="114" y1="109" x2="114" y2="121"/>
+    <line x1="122" y1="111" x2="122" y2="119"/>
+    <line x1="130" y1="108" x2="130" y2="122"/>
+    <line x1="138" y1="110" x2="138" y2="120"/>
+    <line x1="146" y1="112" x2="146" y2="118"/>
+    <line x1="154" y1="113" x2="154" y2="117"/>
+  </g>
+
+  <!-- Text -->
+  <text x="96" y="152" text-anchor="middle" font-family="system-ui, sans-serif" font-size="16" font-weight="700" fill="#334155" letter-spacing="0.8">
+    LEGACYBOT
+  </text>
+</svg>

@@ -1,0 +1,247 @@
+/**
+ * Firestore Security Rules for LegacyBot.
+ * Family-based access control with admin and storyteller roles.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper functions ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperadmin() {
+      return isAuthenticated() && request.auth.token.isSuperadmin == true;
+    }
+
+    function getMember(familyId, uid) {
+      return get(/databases/$(database)/documents/families/$(familyId)/members/$(uid));
+    }
+
+    function isFamilyMember(familyId) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/families/$(familyId)/members/$(request.auth.uid));
+    }
+
+    function memberRoles(familyId) {
+      return getMember(familyId, request.auth.uid).data.roles;
+    }
+
+    function isFamilyAdmin(familyId) {
+      return isFamilyMember(familyId) && 'admin' in memberRoles(familyId);
+    }
+
+    function isFamilyStoryteller(familyId) {
+      return isFamilyMember(familyId) && 'storyteller' in memberRoles(familyId);
+    }
+
+    function getDossierStoryteller(familyId, dossierId) {
+      return get(/databases/$(database)/documents/families/$(familyId)/dossiers/$(dossierId)).data.storytellerUid;
+    }
+
+    function isOwnDossier(familyId, dossierId) {
+      return getDossierStoryteller(familyId, dossierId) == request.auth.uid;
+    }
+
+    // --- Users ---
+    match /users/{uid} {
+      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // --- Invitation codes ---
+    // Codes are managed by superadmins through Cloud Functions (generate,
+    // deactivate, reactivate). Redemption is also callable-only. Superadmins
+    // may read the collection to populate the management UI; no one writes
+    // directly from the client.
+    match /invitationCodes/{code} {
+      allow read: if isSuperadmin();
+      allow write: if false;
+
+      match /redemptions/{uid} {
+        allow read: if isSuperadmin();
+        allow write: if false;
+      }
+    }
+
+    // --- Families ---
+    match /families/{familyId} {
+      // Family creation is gated by invitation codes — handled by redeemInvitationCode
+      // Cloud Function (Admin SDK bypasses rules). Direct client creation is blocked.
+      allow create: if false;
+      allow read: if isFamilyMember(familyId);
+      allow update, delete: if isFamilyAdmin(familyId);
+
+      // --- Members ---
+      match /members/{memberId} {
+        allow read: if isFamilyMember(familyId);
+        allow create, update, delete: if isFamilyAdmin(familyId);
+        // User can create their own member doc (invite acceptance). Must
+        // reference a valid, pending invitation for this family and email,
+        // and the roles must match exactly — without the invitation check,
+        // any authenticated user could grant themselves 'admin' rights to
+        // any family. The email must also be verified: anyone can create a
+        // Firebase Auth account claiming an arbitrary email address, so an
+        // unverified token email would let an attacker hijack invitations
+        // sent to someone else.
+        allow create: if isAuthenticated() && request.auth.uid == memberId
+          && request.auth.token.email_verified == true
+          && 'inviteId' in request.resource.data
+          && exists(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId))
+          && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.status == 'pending'
+          && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.familyId == familyId
+          && get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.email == request.auth.token.email.lower()
+          && request.resource.data.roles == get(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.roles;
+      }
+
+      // --- Dossiers ---
+      match /dossiers/{dossierId} {
+        allow read, write: if isFamilyAdmin(familyId);
+        allow read, write: if isFamilyStoryteller(familyId)
+          && resource.data.storytellerUid == request.auth.uid;
+        // Allow storyteller to claim an unassigned dossier (invite acceptance)
+        allow update: if isFamilyStoryteller(familyId)
+          && resource.data.storytellerUid == null
+          && request.resource.data.storytellerUid == request.auth.uid;
+
+        // --- Questions (Story Queue) ---
+        // Storytellers may read their own queue but not write — questions are
+        // created by admins (manual) or Cloud Functions (gap analysis).
+        // Cloud Functions use the Admin SDK which bypasses these rules.
+        match /questions/{questionId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Dossier-level AI analysis (e.g. gap analysis) ---
+        // Written exclusively by Cloud Functions (Admin SDK bypasses rules).
+        // Admins may read/write for tooling; storytellers may read their own.
+        match /analysis/{docId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Events (extracted from transcripts) ---
+        match /events/{eventId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Audio clips ---
+        match /clips/{clipId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          allow create: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Miscellaneous Facts (from "Talk About My Family" conversations) ---
+        // Written by the storyteller's client during a talk session.
+        // Admins can read all facts; storytellers can read and create their own.
+        match /miscFacts/{factId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read, create: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Prompt photos ---
+        match /promptPhotos/{photoId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Media attachments ---
+        match /media/{mediaId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          allow create: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Memoirs ---
+        match /memoirs/{memoirId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+        }
+
+        // --- Sessions ---
+        match /sessions/{sessionId} {
+          allow read, write: if isFamilyAdmin(familyId);
+          allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          allow create: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId)
+            && request.resource.data.storytellerUid == request.auth.uid;
+          allow update: if isFamilyStoryteller(familyId) && resource.data.storytellerUid == request.auth.uid;
+
+          // --- Transcript ---
+          match /transcript/{docId} {
+            allow read, write: if isFamilyAdmin(familyId);
+            allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          }
+
+          // --- Post-session analysis (engagement, suggestions) ---
+          match /analysis/{docId} {
+            allow read, write: if isFamilyAdmin(familyId);
+            allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          }
+        }
+      }
+
+      // --- Events (family-level, Phase 3) ---
+      match /events/{eventId} {
+        allow read: if isFamilyMember(familyId);
+        allow create, update, delete: if isFamilyAdmin(familyId);
+        // Storytellers can create family events via post-session analysis
+        allow create: if isFamilyStoryteller(familyId);
+      }
+    }
+
+    // --- Context chunks (semantic search index) ---
+    // Written exclusively by Cloud Functions (Admin SDK). Clients access
+    // search results through the searchContext callable, never directly.
+    match /families/{familyId}/contextChunks/{chunkId} {
+      allow read, write: if false;
+    }
+
+    // --- Per-user rate-limit counters ---
+    // Written exclusively by Cloud Functions (Admin SDK via enforceRateLimit).
+    // Clients must never read or write these — they are the authoritative
+    // counter backing daily caps on expensive callables (geoProxy, memoir,
+    // searchContext, etc). Exposing them would let a client inspect or
+    // manipulate their remaining allowance.
+    match /_usage/{uid}/{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Wikipedia article cache (shared, read-only from clients) ---
+    // Reads are open to any authenticated user — the data is public
+    // Wikipedia content and shared across the app. Writes are denied here
+    // and happen exclusively through the `cacheWikipediaArticle` Cloud
+    // Function, which fetches the article server-side before writing.
+    // This prevents cache-poisoning attacks where a malicious user could
+    // overwrite a popular article with manipulated content to inject
+    // prompts into other users' Gemini tool calls.
+    match /wikipedia_cache/{articleId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+
+      match /chunks/{chunkIndex} {
+        allow read: if isAuthenticated();
+        allow write: if false;
+      }
+    }
+
+    // --- Invitations ---
+    // Invitee access keys off the token's email claim, which is attacker-
+    // chosen at account creation — so the invitee branches additionally
+    // require email_verified to prove the caller actually owns that address.
+    match /invitations/{inviteId} {
+      allow create: if isAuthenticated() && isFamilyAdmin(request.resource.data.familyId);
+      allow read: if isAuthenticated()
+        && ((resource.data.email == request.auth.token.email
+             && request.auth.token.email_verified == true)
+            || isFamilyAdmin(resource.data.familyId));
+      allow update: if isAuthenticated()
+        && resource.data.email == request.auth.token.email
+        && request.auth.token.email_verified == true
+        && request.resource.data.status == 'accepted';
+      allow delete: if isAuthenticated() && isFamilyAdmin(resource.data.familyId);
+    }
+  }
+}

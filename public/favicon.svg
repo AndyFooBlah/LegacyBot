@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- LegacyBot favicon — simplified sunset + waveform -->
+  <defs>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+    <clipPath id="sc"><circle cx="16" cy="18" r="10"/></clipPath>
+    <clipPath id="h"><rect x="0" y="0" width="32" height="18"/></clipPath>
+  </defs>
+
+  <!-- Sun half -->
+  <g clip-path="url(#h)">
+    <circle cx="16" cy="18" r="10" fill="url(#s)"/>
+    <g clip-path="url(#sc)">
+      <rect x="0" y="10" width="32" height="1.5" fill="white" opacity="0.9"/>
+      <rect x="0" y="13.5" width="32" height="1.5" fill="white" opacity="0.85"/>
+      <rect x="0" y="16.5" width="32" height="1.5" fill="white" opacity="0.8"/>
+    </g>
+  </g>
+
+  <!-- Horizon -->
+  <line x1="3" y1="18" x2="29" y2="18" stroke="#4338ca" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Waveform -->
+  <g stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+    <line x1="7" y1="22" x2="7" y2="25"/>
+    <line x1="10" y1="21" x2="10" y2="26"/>
+    <line x1="13" y1="20" x2="13" y2="27"/>
+    <line x1="16" y1="21" x2="16" y2="26"/>
+    <line x1="19" y1="20" x2="19" y2="27"/>
+    <line x1="22" y1="21" x2="22" y2="26"/>
+    <line x1="25" y1="22" x2="25" y2="25"/>
+  </g>
+</svg>

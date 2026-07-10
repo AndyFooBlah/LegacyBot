@@ -1,0 +1,83 @@
+/**
+ * Cloud Storage Security Rules for LegacyBot.
+ *
+ * Paths:
+ *   Session audio: {familyId}/{dossierId}/{sessionId}.webm   (audio/webm)
+ *   Media:         {familyId}/{dossierId}/media/{fileId}     (image/*, 50MB cap)
+ *   Clips:         {familyId}/{dossierId}/clips/{clipId}     (audio/webm)
+ *   Prompt photos: {familyId}/{dossierId}/promptPhotos/{id}  (image/*, 50MB cap)
+ *   Memoirs:       {familyId}/{dossierId}/memoirs/{filename}
+ *
+ * Access requires:
+ *   1. The user is authenticated.
+ *   2. The user's Firebase Auth token contains the target familyId in its
+ *      `familyIds` custom claim — set by the onMemberWritten Cloud Function
+ *      whenever a user joins or leaves a family.
+ *
+ * The client must call `user.getIdToken(true)` after joining a family to
+ * receive a token with the updated claim before accessing storage.
+ *
+ * Rule structure note: Storage rules OR every matching allow, so a broad
+ * catch-all would bypass per-path content-type and size limits. Each path
+ * is therefore declared explicitly and the catch-all has been removed.
+ */
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isFamilyMember(familyId) {
+      return request.auth != null
+        && familyId in request.auth.token.get('familyIds', []);
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    function isAudio() {
+      return request.resource.contentType.matches('audio/.*');
+    }
+
+    function maxSize(megabytes) {
+      return request.resource.size < megabytes * 1024 * 1024;
+    }
+
+    // --- Session audio recordings (depth-3: {familyId}/{dossierId}/{file}) ---
+    // A single file at the dossier root is always a session audio recording
+    // (audio/webm; 500 MB allows for multi-hour interviews).
+    match /{familyId}/{dossierId}/{filename} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if isFamilyMember(familyId) && isAudio() && maxSize(500);
+      allow delete: if isFamilyMember(familyId);
+    }
+
+    // --- Uploaded media (images only, 50 MB max) ---
+    match /{familyId}/{dossierId}/media/{mediaId} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if isFamilyMember(familyId) && isImage() && maxSize(50);
+      allow delete: if isFamilyMember(familyId);
+    }
+
+    // --- Audio clips (extracted segments, audio/webm, 100 MB max) ---
+    match /{familyId}/{dossierId}/clips/{clipId} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if isFamilyMember(familyId) && isAudio() && maxSize(100);
+      allow delete: if isFamilyMember(familyId);
+    }
+
+    // --- Prompt photos (memory-jogging images shown during sessions) ---
+    match /{familyId}/{dossierId}/promptPhotos/{photoId} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if isFamilyMember(familyId) && isImage() && maxSize(50);
+      allow delete: if isFamilyMember(familyId);
+    }
+
+    // --- Generated memoir files (PDF / DOCX written by memoir generation) ---
+    // Memoirs are written server-side via the Admin SDK (which bypasses these
+    // rules), so clients only ever need to read them.
+    match /{familyId}/{dossierId}/memoirs/{filename} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if false;
+    }
+  }
+}
