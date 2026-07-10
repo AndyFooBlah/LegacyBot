@@ -45,7 +45,11 @@ export const RATE_LIMITS = {
   triggerDigestForDossier: 20,
   cacheWikipediaArticle: 100,
   mintGeminiLiveToken: 200,
-  invokeGemini: 1000,
+  // invokeGemini is a general text-generation proxy on the paid key. A heavy
+  // interview day fires a few dozen of these (event extraction, engagement,
+  // date normalization, transcript cleanup); 300 leaves generous headroom
+  // while bounding a runaway loop or a compromised account.
+  invokeGemini: 300,
   embedGemini: 500,
 } as const;
 

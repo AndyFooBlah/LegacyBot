@@ -51,6 +51,15 @@ const ALLOWED_MODELS = new Set<string>([
 /** Cap output tokens to bound the worst-case cost of a single call. */
 const MAX_OUTPUT_TOKENS_CEILING = 32_768;
 
+/**
+ * Cap the serialized request `contents` size. The per-call rate limit bounds
+ * how MANY calls a user makes, but not how large each one is — without this a
+ * single call could ship a multi-megabyte prompt and run up input-token cost.
+ * ~200k chars is roughly 50k tokens: generous for this app's largest real
+ * prompt (a long transcript or full dossier) while blocking bulk abuse.
+ */
+const MAX_INPUT_CHARS = 200_000;
+
 export interface InvokeGeminiRequest {
   model: string;
   contents: unknown;
@@ -89,6 +98,18 @@ export function buildInvokeGeminiHandler(deps: {
     }
     if (contents === undefined || contents === null) {
       throw new HttpsError('invalid-argument', 'contents is required.');
+    }
+    let contentsSize: number;
+    try {
+      contentsSize = JSON.stringify(contents).length;
+    } catch {
+      throw new HttpsError('invalid-argument', 'contents is not serializable.');
+    }
+    if (contentsSize > MAX_INPUT_CHARS) {
+      throw new HttpsError(
+        'invalid-argument',
+        `contents is too large (${contentsSize} chars; limit ${MAX_INPUT_CHARS}).`,
+      );
     }
 
     const safeConfig = { ...(config ?? {}) } as Record<string, unknown>;

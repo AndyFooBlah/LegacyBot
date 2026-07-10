@@ -60,6 +60,16 @@ describe('invokeGemini', () => {
     );
   });
 
+  it('throws invalid-argument if contents exceeds the input-size ceiling', async () => {
+    const request = {
+      auth: { uid: 'u1' },
+      data: { model: 'gemini-2.5-flash', contents: 'x'.repeat(200_001) },
+    } as any;
+    await expect(handler(request)).rejects.toThrow(HttpsError);
+    await expect(handler(request)).rejects.toThrow(/too large/);
+    expect(mockGenerateContent).not.toHaveBeenCalled();
+  });
+
   it('calls Gemini and returns the response', async () => {
     const request = { 
       auth: { uid: 'u1' }, 
