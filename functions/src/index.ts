@@ -1578,13 +1578,17 @@ export const backfillContextChunks = onCall(
 // matching; results are merged with Reciprocal Rank Fusion (RRF, k=60).
 // ---------------------------------------------------------------------------
 
-async function verifyFamilyMember(request: CallableRequest, familyId: string): Promise<void> {
+async function verifyFamilyMember(
+  request: CallableRequest,
+  familyId: string,
+): Promise<{ roles: string[] }> {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
   const memberDoc = await db
     .collection('families').doc(familyId)
     .collection('members').doc(request.auth.uid)
     .get();
   if (!memberDoc.exists) throw new HttpsError('permission-denied', 'Not a family member.');
+  return { roles: (memberDoc.data()?.roles ?? []) as string[] };
 }
 
 export const cacheWikipediaArticle = onCall(
@@ -1629,7 +1633,8 @@ export const searchContext = onCall(
       throw new HttpsError('invalid-argument', 'topK must be between 1 and 20.');
     }
 
-    await verifyFamilyMember(request, familyId);
+    const { roles } = await verifyFamilyMember(request, familyId);
+    const callerIsAdmin = roles.includes('admin');
     await enforceRateLimit(request.auth!.uid, 'searchContext');
 
     const apiKey = geminiApiKey.value();
@@ -1713,12 +1718,18 @@ export const searchContext = onCall(
       fetched.forEach((doc) => { if (doc.exists) docCache.set(doc.id, doc.data()!); });
     }
 
-    const scored = [...allDocIds].map((id) => {
-      const vRank = vectorRankMap.get(id) ?? (fetchCount + 1);
-      const kRank = keywordRankMap.get(id) ?? (keywordRank + 1);
-      const score = 1 / (K + vRank) + 1 / (K + kRank);
-      return { id, score };
-    });
+    const scored = [...allDocIds]
+      // adminNotes are the admin's private notes, not shared family history —
+      // exclude them for non-admin callers (e.g. storytellers). Filtering here,
+      // before the topK slice, means a storyteller still gets a full topK of
+      // allowed chunks rather than a short list with admin content removed.
+      .filter((id) => callerIsAdmin || docCache.get(id)?.source !== 'adminNotes')
+      .map((id) => {
+        const vRank = vectorRankMap.get(id) ?? (fetchCount + 1);
+        const kRank = keywordRankMap.get(id) ?? (keywordRank + 1);
+        const score = 1 / (K + vRank) + 1 / (K + kRank);
+        return { id, score };
+      });
 
     scored.sort((a, b) => b.score - a.score);
     const topDocs = scored.slice(0, topK);
