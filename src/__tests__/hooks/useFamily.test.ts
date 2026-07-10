@@ -13,13 +13,13 @@
 // limitations under the License.
 
 /**
- * Tests for the useFamily, useFamilyMembers, useCurrentRoles hooks and createFamily function.
+ * Tests for the useFamily, useFamilyMembers, useCurrentRoles hooks.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { mockFirestore } from '../../__mocks__/firebase';
-import { useFamily, useFamilyMembers, useCurrentRoles, createFamily, getUserFamilyIds, updateMemberRoles } from '../../hooks/useFamily';
+import { useFamily, useFamilyMembers, useCurrentRoles, getUserFamilyIds, updateMemberRoles } from '../../hooks/useFamily';
 
 beforeEach(() => {
   Object.values(mockFirestore).forEach((fn) => {
@@ -130,34 +130,6 @@ describe('useCurrentRoles', () => {
     expect(result.current.roles).toEqual(['admin', 'storyteller']);
     expect(result.current.isAdmin).toBe(true);
     expect(result.current.isStoryteller).toBe(true);
-  });
-});
-
-describe('createFamily', () => {
-  it('creates a family document and returns the ID', async () => {
-    mockFirestore.addDoc.mockResolvedValueOnce({ id: 'new-family-id' });
-    const mockBatch = { set: vi.fn(), update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
-    mockFirestore.writeBatch.mockReturnValueOnce(mockBatch);
-
-    const id = await createFamily('The Brooks Family', 'uid-1', 'test@test.com', 'Test User');
-
-    expect(id).toBe('new-family-id');
-    expect(mockFirestore.addDoc).toHaveBeenCalledTimes(1);
-    const familyData = mockFirestore.addDoc.mock.calls[0][1];
-    expect(familyData.name).toBe('The Brooks Family');
-    expect(familyData.createdBy).toBe('uid-1');
-  });
-
-  it('creates the admin member via batch', async () => {
-    mockFirestore.addDoc.mockResolvedValueOnce({ id: 'new-family-id' });
-    const mockBatch = { set: vi.fn(), update: vi.fn(), commit: vi.fn().mockResolvedValue(undefined) };
-    mockFirestore.writeBatch.mockReturnValueOnce(mockBatch);
-
-    await createFamily('Test Family', 'uid-1', 'test@test.com', 'Test User');
-
-    expect(mockBatch.set).toHaveBeenCalledTimes(1);
-    expect(mockBatch.update).toHaveBeenCalledTimes(1);
-    expect(mockBatch.commit).toHaveBeenCalledTimes(1);
   });
 });
 

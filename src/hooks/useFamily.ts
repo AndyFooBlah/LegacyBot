@@ -25,14 +25,11 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   doc,
-  addDoc,
   getDoc,
   updateDoc,
   onSnapshot,
   query,
   Timestamp,
-  writeBatch,
-  arrayUnion,
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Family, FamilyMember, FamilyMemberRecord, UserRole } from '../types';
@@ -183,56 +180,12 @@ export function useCurrentRoles(familyId: string | undefined, uid: string | unde
  */
 export const MAX_FAMILIES_PER_USER = 10;
 
-/**
- * Create a new family and add the creator as the first admin member.
- * Returns the new family ID.
- */
-export async function createFamily(
-  name: string,
-  uid: string,
-  email: string,
-  displayName: string,
-): Promise<string> {
-  const now = Timestamp.now();
-
-  // M9 gate: count families this user is already a member of.
-  const existing = await getUserFamilyIds(uid);
-  if (existing.length >= MAX_FAMILIES_PER_USER) {
-    throw new Error(
-      `You're already a member of ${existing.length} families (limit: ${MAX_FAMILIES_PER_USER}). Leave one before creating another.`,
-    );
-  }
-
-  // Create family document
-  const familyRef = await addDoc(collection(db, 'families'), {
-    name,
-    familyTree: [],
-    createdAt: now,
-    createdBy: uid,
-  } as Omit<Family, 'id'>);
-
-  const familyId = familyRef.id;
-
-  // Batch: create member doc + update user's familyIds
-  const batch = writeBatch(db);
-
-  const memberRef = doc(db, 'families', familyId, 'members', uid);
-  const memberData: FamilyMemberRecord = {
-    roles: ['admin'],
-    email: email.toLowerCase(),
-    displayName,
-    joinedAt: now,
-    invitedBy: uid, // self-created
-  };
-  batch.set(memberRef, memberData);
-
-  const userRef = doc(db, 'users', uid);
-  batch.update(userRef, { familyIds: arrayUnion(familyId) });
-
-  await batch.commit();
-
-  return familyId;
-}
+// Family creation happens exclusively through the `redeemInvitationCode` Cloud
+// Function (Admin SDK), which gates it behind a valid invitation code. Direct
+// client-side creation is denied by `families` `allow create: if false`, so the
+// former client-side `createFamily` helper has been removed — it could only
+// ever have failed at runtime, and it wrote `familyIds` client-side, which is
+// no longer permitted.
 
 /**
  * Update the family tree for a family (shared across all dossiers).

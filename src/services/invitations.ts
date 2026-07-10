@@ -31,7 +31,6 @@ import {
   where,
   Timestamp,
   writeBatch,
-  arrayUnion,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { Invitation, UserRole, FamilyMemberRecord } from '../types';
@@ -99,9 +98,10 @@ export async function cancelInvitation(inviteId: string): Promise<void> {
 }
 
 /**
- * Accepts an invitation: creates a family member record, updates user.familyIds,
- * links storyteller to dossiers if applicable, and marks invitation as accepted.
- * All writes are batched for atomicity.
+ * Accepts an invitation: creates a family member record, links storyteller to
+ * dossiers if applicable, and marks invitation as accepted. All writes are
+ * batched for atomicity. The user's `familyIds` (profile + custom claim) are
+ * updated server-side by the onMemberWritten trigger once the member doc lands.
  */
 /**
  * M9: Per-family member cap. Prevents an admin account (or a stolen one)
@@ -130,8 +130,11 @@ export async function acceptInvitation(
     );
   }
 
-  // Step 1: Create member record, update user profile, and mark invitation accepted.
-  // These must complete first so the user is a family member before step 2.
+  // Step 1: Create the member record and mark the invitation accepted. These
+  // must complete first so the user is a family member before step 2. The
+  // user's `familyIds` profile field and custom claim are maintained
+  // server-side by the onMemberWritten trigger — clients may not write
+  // familyIds (it is the cross-family access boundary).
   const batch = writeBatch(db);
 
   const memberRef = doc(db, 'families', invitation.familyId, 'members', uid);
@@ -144,9 +147,6 @@ export async function acceptInvitation(
     inviteId,
   };
   batch.set(memberRef, memberData);
-
-  const userRef = doc(db, 'users', uid);
-  batch.update(userRef, { familyIds: arrayUnion(invitation.familyId) });
 
   const inviteRef = doc(db, 'invitations', inviteId);
   batch.update(inviteRef, { status: 'accepted' });

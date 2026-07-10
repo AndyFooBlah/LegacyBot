@@ -213,22 +213,53 @@ export const onInvitationCreated = onDocumentCreated(
 
 /**
  * Triggered whenever a member document is created, updated, or deleted.
- * Reads all the user's current family memberships and writes them as a
- * `familyIds` custom claim on their Firebase Auth token.
+ *
+ * This function is the SOLE, AUTHORITATIVE maintainer of both
+ * `users/{uid}.familyIds` and the matching `familyIds` custom claim. Clients
+ * are denied writes to that profile field (see firestore.rules), so the field
+ * — and the claim `storage.rules` gates all access on — can only ever reflect
+ * real membership: a member doc exists because the invitation rules admitted
+ * the user to that specific family. This is what makes cross-family isolation
+ * un-forgeable; a client cannot name a family it never joined.
+ *
+ * The member doc's presence/absence after the write tells us whether this is a
+ * join (add the familyId) or a removal (drop it). arrayUnion/arrayRemove are
+ * idempotent, so redundant/retried events are safe.
  */
 export const onMemberWritten = onDocumentWritten(
   'families/{familyId}/members/{memberId}',
   async (event) => {
     const uid = event.params.memberId;
+    const familyId = event.params.familyId;
+    const isMember = event.data?.after?.exists ?? false;
     try {
-      const userProfileDoc = await db.collection('users').doc(uid).get();
-      const familyIds: string[] = userProfileDoc.data()?.familyIds ?? [];
+      const userRef = db.collection('users').doc(uid);
+      await userRef.set(
+        {
+          familyIds: isMember
+            ? admin.firestore.FieldValue.arrayUnion(familyId)
+            : admin.firestore.FieldValue.arrayRemove(familyId),
+        },
+        { merge: true },
+      );
+
+      const familyIds: string[] = (await userRef.get()).data()?.familyIds ?? [];
       const userRecord = await admin.auth().getUser(uid);
       await admin.auth().setCustomUserClaims(uid, {
         ...userRecord.customClaims,
         familyIds,
       });
-      logger.info(`[Claims] Updated familyIds for ${uid}: [${familyIds.join(', ')}]`);
+
+      // On removal, revoke refresh tokens so the ejected member cannot silently
+      // re-mint a token that still carries the family. Existing ID tokens stay
+      // valid until they expire (≤1h) — the inherent Firebase revocation window.
+      if (!isMember) {
+        await admin.auth().revokeRefreshTokens(uid);
+      }
+      logger.info(
+        `[Claims] ${uid} ${isMember ? 'added to' : 'removed from'} ${familyId}; ` +
+        `familyIds now [${familyIds.join(', ')}]`,
+      );
     } catch (err) {
       logger.error(`[Claims] Failed to update claims for ${uid}:`, err);
     }
@@ -462,11 +493,9 @@ export const redeemInvitationCode = onCall(async (request: CallableRequest) => {
       joinedAt: now,
       invitedBy: uid,
     });
-
-    const userRef = db.collection('users').doc(uid);
-    tx.update(userRef, {
-      familyIds: admin.firestore.FieldValue.arrayUnion(familyId),
-    });
+    // The user's familyIds profile field + custom claim are set by the
+    // onMemberWritten trigger that fires on this member doc — the single
+    // authoritative writer of that field, so it's not written here.
 
     tx.update(codeRef, {
       redemptionCount: admin.firestore.FieldValue.increment(1),
@@ -620,7 +649,11 @@ export const onUserProfileWritten = onDocumentWritten(
     try {
       const userRecord = await admin.auth().getUser(uid);
       const existing = userRecord.customClaims ?? {};
-      if (existing.isSuperadmin === isSuperadmin) return;
+      // Coerce a missing claim to false so this no-ops for ordinary users.
+      // Without it, the first profile write for a new user (including the
+      // familyIds write from onMemberWritten) would spuriously re-set claims
+      // and could race with onMemberWritten's own claim update.
+      if ((existing.isSuperadmin ?? false) === isSuperadmin) return;
       await admin.auth().setCustomUserClaims(uid, { ...existing, isSuperadmin });
       logger.info(`[Claims] Set isSuperadmin=${isSuperadmin} for ${uid}`);
     } catch (err) {

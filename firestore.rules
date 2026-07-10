@@ -45,8 +45,25 @@ service cloud.firestore {
     }
 
     // --- Users ---
+    // A user owns their profile, but two fields are OFF-LIMITS to the client
+    // because Cloud Functions mirror them into Firebase Auth custom claims:
+    //   - isSuperadmin  → the `isSuperadmin` claim (platform admin)
+    //   - familyIds     → the `familyIds` claim, which storage.rules trusts as
+    //                     the cross-family access boundary
+    // If a client could write either, it could self-grant superadmin or name a
+    // family it never joined and read another family's private data. Both are
+    // therefore server-only: isSuperadmin is set via the Admin SDK / console,
+    // and familyIds is maintained exclusively by the onMemberWritten function
+    // from real membership (both bypass these rules).
     match /users/{uid} {
-      allow read, write: if isAuthenticated() && request.auth.uid == uid;
+      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow create: if isAuthenticated() && request.auth.uid == uid
+        && !('isSuperadmin' in request.resource.data)
+        && (!('familyIds' in request.resource.data)
+            || request.resource.data.familyIds.size() == 0);
+      allow update: if isAuthenticated() && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['isSuperadmin', 'familyIds']);
     }
 
     // --- Invitation codes ---
