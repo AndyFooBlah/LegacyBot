@@ -42,9 +42,9 @@ export const MemberManagement: React.FC = () => {
   const [editEmail, setEditEmail] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Reset password state
-  const [resetLink, setResetLink] = useState<string | null>(null);
-  const [resetForName, setResetForName] = useState('');
+  // Reset password state. The link is emailed to the member by the server and
+  // never returned to the admin (#158); we only track who it was sent to.
+  const [resetSentForName, setResetSentForName] = useState<string | null>(null);
   const [resetting, setResetting] = useState<string | null>(null);
 
   // Reissue invite state
@@ -71,12 +71,11 @@ export const MemberManagement: React.FC = () => {
     if (!familyId) return;
     setResetting(targetUid);
     try {
-      const link = await resetMemberPassword(familyId, targetUid);
-      setResetLink(link);
-      setResetForName(displayName);
+      await resetMemberPassword(familyId, targetUid);
+      setResetSentForName(displayName);
     } catch (err: any) {
       console.error('[MemberManagement] Reset password error:', err);
-      alert(err.message || 'Failed to generate reset link');
+      alert(err.message || 'Failed to send reset link');
     } finally {
       setResetting(null);
     }
@@ -137,41 +136,22 @@ export const MemberManagement: React.FC = () => {
         />
       )}
 
-      {/* Password reset link display */}
-      {resetLink && (
-        <div className="bg-blue-50 rounded-2xl border border-blue-200 p-6 space-y-3">
+      {/* Password reset confirmation — the link is emailed to the member, not shown here (#158) */}
+      {resetSentForName && (
+        <div className="bg-blue-50 rounded-2xl border border-blue-200 p-6 space-y-2">
           <p className="font-semibold text-blue-700">
-            Password reset link for {resetForName}:
+            Password reset link sent to {resetSentForName}
           </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              readOnly
-              value={resetLink}
-              className="flex-1 p-3 bg-white border border-blue-200 rounded-xl text-sm text-slate-700 select-all"
-              onClick={(e) => (e.target as HTMLInputElement).select()}
-            />
-            <button
-              onClick={() => navigator.clipboard.writeText(resetLink)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Copy
-            </button>
-          </div>
-          <div className="flex gap-4">
-            <button
-              onClick={() => { setResetLink(null); setResetForName(''); }}
-              className="text-sm text-blue-600 font-medium hover:underline"
-            >
-              Dismiss
-            </button>
-            <button
-              onClick={() => navigate('/')}
-              className="text-sm text-slate-500 font-medium hover:underline"
-            >
-              Go to Login Page
-            </button>
-          </div>
+          <p className="text-sm text-blue-600">
+            The reset link was emailed to their account email address. For their
+            security, it isn&apos;t shown here.
+          </p>
+          <button
+            onClick={() => setResetSentForName(null)}
+            className="text-sm text-blue-600 font-medium hover:underline"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

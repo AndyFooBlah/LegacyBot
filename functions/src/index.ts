@@ -22,7 +22,7 @@
  * sendDailyDigest:      Scheduled hourly — emails storytellers who haven't
  *                       recorded in 2–7 days with upcoming topics.
  * updateMemberEmail:    Callable — update a family member's email (admin only).
- * resetMemberPassword:  Callable — generate a password reset link (admin only).
+ * resetMemberPassword:  Callable — email a password reset link to the member (admin only).
  * triggerDigestForDossier: Callable — manually send digest email (admin only).
  * generateMemoir:       Callable — generate a memoir via Gemini (admin only).
  *
@@ -389,7 +389,9 @@ export const updateMemberEmail = onCall(
 });
 
 /**
- * Callable: generate a password reset link for a family member (admin only).
+ * Callable (admin only): generate a password reset link for a family member and
+ * EMAIL it to that member. The link is never returned to the admin caller — see
+ * #158. Fails closed (throws) if SMTP is not configured.
  */
 export const resetMemberPassword = onCall(async (request: CallableRequest) => {
   const { familyId, targetUid } = request.data;
@@ -403,8 +405,54 @@ export const resetMemberPassword = onCall(async (request: CallableRequest) => {
   if (!userRecord.email) {
     throw new HttpsError('not-found', 'User has no email address.');
   }
+
+  // Email the reset link directly to the MEMBER — never return it to the admin
+  // caller (#158). Returning it would let an admin seize a single-family
+  // account without the owner ever being notified. Fail closed if mail isn't
+  // configured, so the link is never handed to the admin as a fallback.
+  const transporter = createTransporter();
+  if (!transporter) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Email delivery is not configured, so a password-reset link cannot be sent.',
+    );
+  }
+
   const resetLink = await admin.auth().generatePasswordResetLink(userRecord.email);
-  return { resetLink };
+  try {
+    await transporter.sendMail({
+      from: `"LegacyBot" <${smtpUser.value()}>`,
+      to: userRecord.email,
+      subject: 'Reset your LegacyBot password',
+      html: `
+        <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
+          <h1 style="font-size: 24px; color: #1e293b;">Password Reset</h1>
+          <p style="color: #64748b; line-height: 1.6;">
+            A family admin requested a password reset for your LegacyBot account.
+            Use the button below to choose a new password. This link expires after
+            a short time.
+          </p>
+          <p style="margin: 24px 0;">
+            <a href="${escapeHtml(resetLink)}"
+               style="display: inline-block; background: #4f46e5; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600;">
+              Reset Password
+            </a>
+          </p>
+          <p style="color: #94a3b8; font-size: 13px; line-height: 1.6;">
+            If you did not expect this, you can ignore this email — your password
+            stays the same until you use the link. If you're concerned, contact
+            your family admin.
+          </p>
+        </div>
+      `,
+    });
+    logger.info(`Password-reset link emailed to ${maskEmail(userRecord.email)}`);
+  } catch (err) {
+    logger.error(`Failed to email password-reset link to ${maskEmail(userRecord.email)}:`, err);
+    throw new HttpsError('internal', 'Failed to send the password-reset email.');
+  }
+
+  return { success: true };
 });
 
 // ---------------------------------------------------------------------------
@@ -1769,7 +1817,10 @@ export const searchContext = onCall(
 
     scored.sort((a, b) => b.score - a.score);
     const topDocs = scored.slice(0, topK);
-    logger.info(`[searchContext] query="${query}" vectorHits=${vectorHits.length} keywordHits=${keywordRankMap.size} returning=${topDocs.length}`);
+    // Do NOT log the raw query — it is arbitrary user input (family member
+    // names, dates, locations) and logging it verbatim turns Cloud Logging into
+    // an unintended PII store (#138). Log only its length for debugging.
+    logger.info(`[searchContext] queryLen=${query.length} vectorHits=${vectorHits.length} keywordHits=${keywordRankMap.size} returning=${topDocs.length}`);
 
     // 5. Format results
     const results = topDocs

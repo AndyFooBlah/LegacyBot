@@ -62,8 +62,9 @@ export const FamilyPage: React.FC = () => {
   const [savingName, setSavingName] = useState(false);
 
   // Reset password state
-  const [resetLink, setResetLink] = useState<string | null>(null);
-  const [resetForName, setResetForName] = useState('');
+  // The reset link is emailed to the member by the server and never returned
+  // to the admin (#158); we only track who it was sent to, to show a confirmation.
+  const [resetSentForName, setResetSentForName] = useState<string | null>(null);
   const [resetting, setResetting] = useState<string | null>(null);
 
   // Create storyteller state
@@ -125,12 +126,11 @@ export const FamilyPage: React.FC = () => {
     if (!familyId) return;
     setResetting(targetUid);
     try {
-      const link = await resetMemberPassword(familyId, targetUid);
-      setResetLink(link);
-      setResetForName(displayName);
+      await resetMemberPassword(familyId, targetUid);
+      setResetSentForName(displayName);
     } catch (err: any) {
       console.error('[FamilyPage] Reset password error:', err);
-      alert(err.message || 'Failed to generate reset link');
+      alert(err.message || 'Failed to send reset link');
     } finally {
       setResetting(null);
     }
@@ -682,25 +682,16 @@ export const FamilyPage: React.FC = () => {
         </div>
 
         {/* Reset Password Link */}
-        {resetLink && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm space-y-3">
-            <p className="text-sm font-semibold text-amber-800">Password Reset Link Generated for {resetForName}</p>
-            <p className="text-xs text-amber-600">Share this link with them:</p>
-            <div className="bg-white rounded-lg p-3 border border-amber-200 break-all text-xs font-mono text-slate-700">
-              {resetLink}
-            </div>
+        {resetSentForName && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm space-y-2">
+            <p className="text-sm font-semibold text-amber-800">Password reset link sent</p>
+            <p className="text-xs text-amber-600">
+              A reset link was emailed to {resetSentForName} at their account email address.
+              For their security, the link isn&apos;t shown here.
+            </p>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(resetLink);
-                alert('Link copied to clipboard!');
-              }}
-              className="text-sm text-amber-600 font-medium hover:underline"
-            >
-              Copy to Clipboard
-            </button>
-            <button
-              onClick={() => setResetLink(null)}
-              className="ml-4 text-sm text-slate-400 hover:text-slate-600"
+              onClick={() => setResetSentForName(null)}
+              className="text-sm text-slate-400 hover:text-slate-600"
             >
               Dismiss
             </button>

@@ -43,14 +43,19 @@ export async function updateMemberEmail(
  * Generate a password reset link for a family member.
  * Returns the reset link URL.
  */
+/**
+ * Ask the server to email a password-reset link to the member. The link is
+ * sent to the member's own address and is never returned to the admin caller
+ * (see functions/src/index.ts `resetMemberPassword`, #158). Resolves when the
+ * email has been sent; rejects if mail is not configured or sending fails.
+ */
 export async function resetMemberPassword(
   familyId: string,
   targetUid: string,
-): Promise<string> {
-  const fn = httpsCallable<{ familyId: string; targetUid: string }, { resetLink: string }>(
+): Promise<void> {
+  const fn = httpsCallable<{ familyId: string; targetUid: string }, { success: boolean }>(
     functions(),
     'resetMemberPassword',
   );
-  const result = await fn({ familyId, targetUid });
-  return result.data.resetLink;
+  await fn({ familyId, targetUid });
 }

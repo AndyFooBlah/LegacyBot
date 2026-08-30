@@ -31,7 +31,15 @@ service firebase.storage {
     }
 
     function isImage() {
-      return request.resource.contentType.matches('image/.*');
+      // Accept raster images but REJECT SVG (#157): an SVG can carry embedded
+      // <script>, and the MediaGallery "open" link navigates directly to the
+      // file, which would execute that script (sandboxed on the Storage origin,
+      // but still XSS). contentType is client-asserted, but blocking the svg
+      // content-type here means an attacker cannot get the file served with an
+      // svg/xml or html type — asserting image/png instead serves it as a png,
+      // which the browser renders (not executes).
+      return request.resource.contentType.matches('image/.*')
+        && !request.resource.contentType.matches('image/svg.*');
     }
 
     function isAudio() {

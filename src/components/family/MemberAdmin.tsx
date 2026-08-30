@@ -53,7 +53,8 @@ export const MemberAdmin: React.FC = () => {
   const [savingEmail, setSavingEmail] = useState(false);
 
   // Reset password
-  const [resetLink, setResetLink] = useState<string | null>(null);
+  // Server emails the reset link to the member; it's never returned here (#158).
+  const [resetSent, setResetSent] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   // Reissue invite
@@ -123,10 +124,10 @@ export const MemberAdmin: React.FC = () => {
     if (!familyId) return;
     setResetting(true);
     try {
-      const link = await resetMemberPassword(familyId, member!.uid);
-      setResetLink(link);
+      await resetMemberPassword(familyId, member!.uid);
+      setResetSent(true);
     } catch (err: any) {
-      alert(err.message || 'Failed to generate reset link');
+      alert(err.message || 'Failed to send reset link');
     } finally {
       setResetting(false);
     }
@@ -351,23 +352,15 @@ export const MemberAdmin: React.FC = () => {
       {/* Password Reset */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
         <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wider">Password Reset</h3>
-        {resetLink ? (
+        {resetSent ? (
           <div className="space-y-3">
-            <p className="text-xs text-slate-500">Share this link with {resolvedName ?? 'the member'}:</p>
-            <div className="bg-slate-50 rounded-lg p-3 border border-slate-200 break-all text-xs font-mono text-slate-700">
-              {resetLink}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { navigator.clipboard.writeText(resetLink); alert('Link copied!'); }}
-                className="text-sm text-amber-600 font-medium hover:underline"
-              >
-                Copy to Clipboard
-              </button>
-              <button onClick={() => setResetLink(null)} className="text-sm text-slate-400 hover:text-slate-600">
-                Dismiss
-              </button>
-            </div>
+            <p className="text-xs text-slate-500">
+              A password reset link was emailed to {resolvedName ?? 'the member'} at their
+              account email address. For their security, it isn&apos;t shown here.
+            </p>
+            <button onClick={() => setResetSent(false)} className="text-sm text-slate-400 hover:text-slate-600">
+              Dismiss
+            </button>
           </div>
         ) : (
           <button
@@ -375,7 +368,7 @@ export const MemberAdmin: React.FC = () => {
             disabled={resetting}
             className="px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors disabled:opacity-50"
           >
-            {resetting ? 'Generating…' : 'Generate Password Reset Link'}
+            {resetting ? 'Sending…' : 'Email Password Reset Link'}
           </button>
         )}
       </div>
