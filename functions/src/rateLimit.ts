@@ -98,3 +98,59 @@ export async function enforceRateLimit(uid: string, bucket: RateLimitBucket): Pr
     }
   });
 }
+
+/**
+ * Per-dossier monthly ceiling for offline transcript refinement (#123).
+ *
+ * Refinement runs automatically on every completed session and costs one
+ * Gemini 3.1 Pro audio call, so we bound spend per dossier per calendar month.
+ * A dossier realistically records a few dozen sessions a month at most; this
+ * cap is a generous backstop against a retrigger loop or runaway, not a normal
+ * limit anyone should hit.
+ */
+export const REFINEMENT_MONTHLY_CAP_PER_DOSSIER = 100;
+
+function utcMonthKey(now = new Date()): string {
+  return now.toISOString().slice(0, 7); // YYYY-MM
+}
+
+/**
+ * Atomically reserve one refinement slot for `dossierId` in the current UTC
+ * month. Returns true if reserved (proceed), false if the monthly cap is
+ * already reached. Unlike {@link enforceRateLimit} this never throws on the
+ * cap — refinement is a silent best-effort upgrade, so the caller logs & skips.
+ *
+ * Counter lives at `_usage/refinement/monthly/{dossierId}_{YYYY-MM}` (the
+ * `_usage` root is denied to all clients by Firestore rules).
+ */
+export async function reserveMonthlyRefinement(
+  dossierId: string,
+  cap: number = REFINEMENT_MONTHLY_CAP_PER_DOSSIER,
+): Promise<boolean> {
+  const monthKey = utcMonthKey();
+  const db = admin.firestore();
+  const docRef = db
+    .collection('_usage').doc('refinement')
+    .collection('monthly').doc(`${dossierId}_${monthKey}`);
+
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(docRef);
+    const current = (snap.exists ? (snap.data()?.count ?? 0) : 0) as number;
+    if (current >= cap) return false;
+
+    if (snap.exists) {
+      tx.update(docRef, {
+        count: admin.firestore.FieldValue.increment(1),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      tx.set(docRef, {
+        dossierId,
+        monthKey,
+        count: 1,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    return true;
+  });
+}

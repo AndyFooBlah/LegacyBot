@@ -231,18 +231,27 @@ export interface SessionMetadata {
   storytellerUid: string; // who conducted the session
   startTime: Timestamp;
   endTime: Timestamp | null;
-  audioUrl: string; // GCS download URL, set after upload
+  audioUrl: string; // GCS object PATH ({familyId}/{dossierId}/{sessionId}.webm), not a URL; clients mint a signed URL via getMediaUrl
   status: SessionStatus;
   durationSeconds: number;
+  /** Set once the offline transcript-refinement pass has run (#123). Its
+   *  presence makes refinement idempotent. Details live in the
+   *  `analysis/refinement` subdoc. */
+  refinedAt?: Timestamp;
 }
 
 /** A single version record in a message's edit history. */
 export interface TranscriptEditHistoryEntry {
   text: string;         // text after this edit was applied
-  editedBy: string;     // uid of the editor
+  editedBy: string;     // uid of the editor, or the 'ai-refinement' sentinel
+                        // for the offline refinement pass (#123)
   editedByName: string; // display name of the editor
   editedAt: Timestamp;
 }
+
+/** Sentinel `editedBy` value written by the offline refinement pass (#123),
+ *  distinguishing an AI refinement from a human edit (which carries a uid). */
+export const AI_REFINEMENT_EDITOR = 'ai-refinement';
 
 /** A single turn in the conversation transcript. */
 export interface TranscriptEntry {

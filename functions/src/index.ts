@@ -53,7 +53,9 @@ import {
   writeChunks,
   embedTexts,
 } from './embeddings';
-import { enforceRateLimit } from './rateLimit';
+import { enforceRateLimit, reserveMonthlyRefinement } from './rateLimit';
+import { buildRefineTranscriptHandler, REFINEMENT_MODEL } from './refineTranscript';
+import { alignRefinedToEntries } from './transcriptAlignment';
 import { parseMediaPathFamilyId } from './mediaPath';
 import { buildCacheWikipediaArticleHandler } from './cacheWikipedia';
 import { buildMintGeminiLiveTokenHandler } from './liveToken';
@@ -903,7 +905,11 @@ export const onSessionCompleted = onDocumentUpdated(
   {
     document: 'families/{familyId}/dossiers/{dossierId}/sessions/{sessionId}',
     secrets: [smtpPass, geminiApiKey],
-    timeoutSeconds: 300,
+    // Offline transcript refinement (#123) downloads the session audio and runs
+    // a Gemini 3.1 Pro audio pass before gap analysis/embedding, so this trigger
+    // needs more time and memory than a plain notification would.
+    timeoutSeconds: 540,
+    memory: '1GiB',
     maxInstances: 5,
   },
   async (event) => {
@@ -928,6 +934,65 @@ export const onSessionCompleted = onDocumentUpdated(
 
     const storytellerName: string = dossierData.storytellerName ?? 'a storyteller';
     const durationMins = Math.round((after.durationSeconds ?? 0) / 60);
+
+    // --- Offline transcript refinement (#123) -----------------------------
+    // Runs FIRST (awaited) so gap analysis + embedding below consume the
+    // higher-fidelity refined text on this same run. Best-effort: any failure
+    // is logged and swallowed — the original real-time transcript stays intact.
+    try {
+      const apiKey = geminiApiKey.value();
+      const audioPath: string | undefined = after.audioUrl;
+      const sessionRef = db
+        .collection('families').doc(familyId)
+        .collection('dossiers').doc(dossierId)
+        .collection('sessions').doc(sessionId);
+      const transcriptRef = sessionRef.collection('transcript').doc('entries');
+
+      if (!apiKey) {
+        logger.warn('[Refine] GEMINI_API_KEY not set — skipping refinement');
+      } else if (!audioPath) {
+        logger.info('[Refine] Session has no audioUrl — skipping refinement');
+      } else if (after.refinedAt) {
+        logger.info('[Refine] Session already refined — skipping');
+      } else {
+        const transcriptDoc = await transcriptRef.get();
+        const tData = transcriptDoc.exists ? (transcriptDoc.data() ?? {}) : {};
+        const entries = Array.isArray(tData.entries) ? tData.entries : [];
+        const humanEdited = Array.isArray(tData.editedEntries) && tData.editedEntries.length > 0;
+
+        if (!transcriptDoc.exists || entries.length === 0) {
+          logger.info('[Refine] No transcript entries — skipping refinement');
+        } else if (humanEdited) {
+          logger.info('[Refine] Transcript already human-edited — skipping refinement');
+        } else if (!(await reserveMonthlyRefinement(dossierId))) {
+          logger.warn(`[Refine] Monthly refinement cap reached for dossier ${dossierId} — skipping`);
+        } else {
+          logger.info(`[Refine] Starting refinement for session ${sessionId} (${entries.length} entries)`);
+          const refine = buildRefineTranscriptHandler({ apiKey });
+          const refined = await refine(audioPath);
+          const now = admin.firestore.Timestamp.now();
+          const { entries: newEntries, replacedCount } = alignRefinedToEntries(entries, refined, now);
+
+          if (replacedCount > 0) {
+            await transcriptRef.update({ entries: newEntries });
+          }
+          await sessionRef.update({ refinedAt: now });
+          await sessionRef.collection('analysis').doc('refinement').set({
+            refinedAt: now,
+            model: REFINEMENT_MODEL,
+            utterances: refined.length,
+            entriesTotal: entries.length,
+            entriesReplaced: replacedCount,
+          });
+          logger.info(
+            `[Refine] Complete: replaced ${replacedCount}/${entries.length} entries ` +
+            `from ${refined.length} refined utterances (session ${sessionId})`,
+          );
+        }
+      }
+    } catch (err) {
+      logger.error('[Refine] Refinement failed (original transcript preserved):', err);
+    }
 
     await Promise.allSettled([
       // Admin notification email
@@ -1023,20 +1088,27 @@ export const onSessionCompleted = onDocumentUpdated(
           logger.error('[GapAnalysis] Failed:', err);
         }
 
-        // Embed session transcript for semantic search (#108)
+        // Embed session transcript for semantic search (#108).
+        // The transcript is a single doc `transcript/entries` holding an
+        // `entries` array (NOT one doc per turn) — reading it as a collection
+        // with orderBy('timestamp') returned zero rows, so embeddings were
+        // silently empty. Read the array and skip tool turns. This also picks
+        // up the refined text written by the refinement step above (#123).
         try {
-          const transcriptSnap = await db
+          const transcriptDoc = await db
             .collection('families').doc(familyId)
             .collection('dossiers').doc(dossierId)
             .collection('sessions').doc(sessionId)
-            .collection('transcript')
-            .orderBy('timestamp', 'asc')
+            .collection('transcript').doc('entries')
             .get();
 
-          const turns = transcriptSnap.docs.map((d) => ({
-            role: d.data().role as string,
-            text: d.data().text as string,
-          }));
+          const entries = transcriptDoc.exists
+            ? ((transcriptDoc.data()?.entries ?? []) as Array<{ role?: string; text?: string }>)
+            : [];
+
+          const turns = entries
+            .filter((e) => (e.role === 'user' || e.role === 'bot') && typeof e.text === 'string')
+            .map((e) => ({ role: e.role as string, text: e.text as string }));
 
           const chunks = chunkTranscript(turns);
           if (chunks.length > 0) {
