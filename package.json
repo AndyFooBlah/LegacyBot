@@ -16,7 +16,7 @@
     "deploy:preview": "npm run build && firebase hosting:channel:deploy preview"
   },
   "dependencies": {
-    "@andyfooblah/knowledge-common": "^1.2.0",
+    "@andyfooblah/knowledge-common": "^1.3.1",
     "@andyfooblah/voice-common": "^0.14.0",
     "@google/genai": "^2.8.0",
     "firebase": "^12.9.0",
