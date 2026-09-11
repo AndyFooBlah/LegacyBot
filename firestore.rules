@@ -44,6 +44,25 @@ service cloud.firestore {
       return getDossierStoryteller(familyId, dossierId) == request.auth.uid;
     }
 
+    // --- Dossier lifecycle (#171) ---
+    // deletedAt / purgeAfter / deletedBy implement soft-delete with a 30-day
+    // retention window and are written ONLY by the requestDossierDeletion /
+    // restoreDossier Cloud Functions (Admin SDK bypasses rules). If a client
+    // could write purgeAfter it could shorten or skip the window, so every
+    // client write path on the dossier document rejects these keys.
+    function touchesLifecycleFields() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasAny(['deletedAt', 'purgeAfter', 'deletedBy']);
+    }
+
+    function createsLifecycleFields() {
+      return request.resource.data.keys().hasAny(['deletedAt', 'purgeAfter', 'deletedBy']);
+    }
+
+    function isDossierDeleted(familyId, dossierId) {
+      return 'deletedAt' in get(/databases/$(database)/documents/families/$(familyId)/dossiers/$(dossierId)).data;
+    }
+
     // --- Users ---
     // A user owns their profile, but two fields are OFF-LIMITS to the client
     // because Cloud Functions mirror them into Firebase Auth custom claims:
@@ -112,14 +131,24 @@ service cloud.firestore {
       }
 
       // --- Dossiers ---
+      // Hard delete is never allowed from the client: deletion goes through
+      // the requestDossierDeletion callable (soft-delete, 30-day window,
+      // audited purge — #171).
       match /dossiers/{dossierId} {
-        allow read, write: if isFamilyAdmin(familyId);
-        allow read, write: if isFamilyStoryteller(familyId)
+        allow read: if isFamilyAdmin(familyId);
+        allow create: if isFamilyAdmin(familyId) && !createsLifecycleFields();
+        allow update: if isFamilyAdmin(familyId) && !touchesLifecycleFields();
+        allow delete: if false;
+        allow read: if isFamilyStoryteller(familyId)
           && resource.data.storytellerUid == request.auth.uid;
+        allow update: if isFamilyStoryteller(familyId)
+          && resource.data.storytellerUid == request.auth.uid
+          && !touchesLifecycleFields();
         // Allow storyteller to claim an unassigned dossier (invite acceptance)
         allow update: if isFamilyStoryteller(familyId)
           && resource.data.storytellerUid == null
-          && request.resource.data.storytellerUid == request.auth.uid;
+          && request.resource.data.storytellerUid == request.auth.uid
+          && !touchesLifecycleFields();
 
         // --- Questions (Story Queue) ---
         // Storytellers may read their own queue but not write — questions are
@@ -179,10 +208,14 @@ service cloud.firestore {
         }
 
         // --- Sessions ---
+        // No new sessions on a soft-deleted dossier (#171); existing ones stay
+        // readable/editable until the purge.
         match /sessions/{sessionId} {
-          allow read, write: if isFamilyAdmin(familyId);
+          allow read, update, delete: if isFamilyAdmin(familyId);
+          allow create: if isFamilyAdmin(familyId) && !isDossierDeleted(familyId, dossierId);
           allow read: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
           allow create: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId)
+            && !isDossierDeleted(familyId, dossierId)
             && request.resource.data.storytellerUid == request.auth.uid;
           allow update: if isFamilyStoryteller(familyId) && resource.data.storytellerUid == request.auth.uid;
 
@@ -213,6 +246,13 @@ service cloud.firestore {
     // Written exclusively by Cloud Functions (Admin SDK). Clients access
     // search results through the searchContext callable, never directly.
     match /families/{familyId}/contextChunks/{chunkId} {
+      allow read, write: if false;
+    }
+
+    // --- Purge audit log (#171) ---
+    // Written exclusively by the daily purge in Cloud Functions. Never
+    // client-readable: rows name deleted dossiers across all families.
+    match /purgeLog/{entryId} {
       allow read, write: if false;
     }
 

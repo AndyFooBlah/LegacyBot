@@ -39,9 +39,20 @@ import { useDossier } from '../../hooks/useDossier';
 import { useFamilyInvitations } from '../../hooks/useInvitations';
 import { StorytellerProfile } from './StorytellerProfile';
 import { uploadPromptPhoto, getPromptPhotos, deletePromptPhoto, getMiscFacts } from '../../services/storage';
-import { PersonalityMode, VoicePreset, PromptPhoto, MiscFact } from '../../types';
+import { PersonalityMode, VoicePreset, PromptPhoto, MiscFact, ConsentMethod } from '../../types';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { Timestamp } from 'firebase/firestore';
 import { MediaImage } from '../shared/ResolvedMedia';
+import {
+  RETENTION_DAYS,
+  isDossierDeleted,
+  formatPurgeDate,
+  daysUntilPurge,
+  requestDossierDeletion,
+  restoreDossier,
+  exportDossier,
+  ExportResult,
+} from '../../services/dossierLifecycle';
 
 export const DossierEditor: React.FC = () => {
   const { familyId, dossierId } = useParams<{ familyId: string; dossierId: string }>();
@@ -85,6 +96,15 @@ export const DossierEditor: React.FC = () => {
   // Misc facts state (from "Talk About My Family" conversations)
   const [miscFacts, setMiscFacts] = useState<MiscFact[]>([]);
 
+  // Data & privacy state (#171)
+  const [consentMethod, setConsentMethod] = useState<ConsentMethod>('spoken');
+  const [consentNote, setConsentNote] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!familyId || !dossierId) return;
     getPromptPhotos(familyId, dossierId).then(setPromptPhotos).catch(console.error);
@@ -119,6 +139,63 @@ export const DossierEditor: React.FC = () => {
     } finally {
       setSendingNudge(false);
       setTimeout(() => setNudgeResult(null), 4000);
+    }
+  }
+
+  function handleRecordConsent() {
+    if (!user) return;
+    updateDossier({
+      consent: { byUid: user.uid, at: Timestamp.now(), method: consentMethod, note: consentNote.trim() },
+    });
+    setConsentNote('');
+  }
+
+  async function handleExport() {
+    if (!familyId || !dossierId) return;
+    setExporting(true);
+    setExportError(null);
+    try {
+      setExportResult(await exportDossier(familyId, dossierId));
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleRequestDeletion() {
+    if (!familyId || !dossierId || !dossier) return;
+    const name = dossier.storytellerName || 'this storyteller';
+    const ok = window.confirm(
+      `Delete ${name}'s dossier?\n\n` +
+      `It will disappear from BiographyBot immediately and no new sessions can be recorded. ` +
+      `Every recording, transcript, memoir and photo will be permanently erased after ${RETENTION_DAYS} days. ` +
+      `Until then any family admin can restore it.\n\n` +
+      `Tip: use "Export everything" first if you want a copy.`,
+    );
+    if (!ok) return;
+    setLifecycleBusy(true);
+    setLifecycleError(null);
+    try {
+      await requestDossierDeletion(familyId, dossierId);
+      navigate(`/family/${familyId}`);
+    } catch (err) {
+      setLifecycleError(err instanceof Error ? err.message : 'Could not delete');
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
+  async function handleRestore() {
+    if (!familyId || !dossierId) return;
+    setLifecycleBusy(true);
+    setLifecycleError(null);
+    try {
+      await restoreDossier(familyId, dossierId);
+    } catch (err) {
+      setLifecycleError(err instanceof Error ? err.message : 'Could not restore');
+    } finally {
+      setLifecycleBusy(false);
     }
   }
 
@@ -187,13 +264,38 @@ export const DossierEditor: React.FC = () => {
           </button>
           <button
             onClick={() => navigate(`/family/${familyId}/dossier/${dossierId}/session`)}
-            disabled={!dossier.storytellerName.trim()}
+            disabled={!dossier.storytellerName.trim() || isDossierDeleted(dossier)}
+            title={isDossierDeleted(dossier) ? 'Restore this dossier to record new sessions' : undefined}
             className="px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-lg disabled:opacity-50"
           >
             Start Session
           </button>
         </div>
       </div>
+
+      {/* Soft-deleted banner (#171) */}
+      {isDossierDeleted(dossier) && (
+        <div className="bg-rose-50 rounded-2xl border border-rose-200 p-5 space-y-2" role="alert">
+          <p className="font-semibold text-rose-700">
+            This dossier is scheduled for permanent deletion on {formatPurgeDate(dossier)}
+            {' '}({daysUntilPurge(dossier)} days left).
+          </p>
+          <p className="text-sm text-rose-600">
+            It is hidden from the family, new sessions are blocked, and on that date every recording,
+            transcript, memoir and photo will be erased. Restore it to keep everything.
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleRestore}
+              disabled={lifecycleBusy}
+              className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50"
+            >
+              {lifecycleBusy ? 'Restoring…' : 'Restore dossier'}
+            </button>
+            {lifecycleError && <span className="text-sm text-rose-700">{lifecycleError}</span>}
+          </div>
+        </div>
+      )}
 
       {/* Invite storyteller — shown when dossier has no linked user */}
       {!dossier.storytellerUid && (
@@ -598,6 +700,149 @@ export const DossierEditor: React.FC = () => {
               )}
             </div>
           </section>
+
+        {/* Data & privacy (#171): what is recorded, consent, refinement opt-out, export, delete */}
+        <section className="space-y-4 pt-2 border-t border-slate-100">
+          <div>
+            <h3 className="font-bold text-slate-700">Data &amp; privacy</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              What BiographyBot records for {dossier.preferredName ?? dossier.storytellerName}, where it goes,
+              and the controls your family has over it.
+            </p>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 space-y-2">
+            <p className="font-semibold text-slate-700">What is recorded and where it goes</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>
+                <strong>During a session</strong> the storyteller's voice streams to Google's Gemini Live API,
+                which produces the interviewer's voice and a live transcript. On the paid tier Google does not
+                keep or train on this audio.
+              </li>
+              <li>
+                <strong>The full recording</strong> (both voices) and the transcript are saved to this family's
+                private Firebase Storage and Firestore, readable only by family members.
+              </li>
+              <li>
+                <strong>After each session</strong>, unless opted out below, the recording is uploaded to the
+                Gemini Files API for an offline transcript-refinement pass (higher-fidelity text, corrected
+                names). Google deletes the uploaded file automatically within 48 hours; the transcript is then
+                analysed for follow-up questions and indexed for the family's search.
+              </li>
+              <li>
+                <strong>Nothing is deleted by accident.</strong> Deleting a dossier hides it and locks new
+                sessions; after {RETENTION_DAYS} days everything is permanently erased unless an admin
+                restores it. You can export a full copy at any time.
+              </li>
+            </ul>
+          </div>
+
+          {/* Consent record */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Consent to record</p>
+            {dossier.consent ? (
+              <p className="text-sm text-slate-600">
+                Recorded {dossier.consent.method === 'written' ? 'in writing' : 'verbally'} on{' '}
+                {dossier.consent.at?.toDate?.()?.toLocaleDateString(undefined, {
+                  year: 'numeric', month: 'short', day: 'numeric',
+                }) ?? '—'}
+                {dossier.consent.byUid === user?.uid ? ' by you' : ''}
+                {dossier.consent.note ? ` — “${dossier.consent.note}”` : ''}.
+              </p>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <select
+                  value={consentMethod}
+                  onChange={(e) => setConsentMethod(e.target.value as ConsentMethod)}
+                  className="p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                  aria-label="How consent was given"
+                >
+                  <option value="spoken">Agreed verbally</option>
+                  <option value="written">Agreed in writing</option>
+                </select>
+                <input
+                  type="text"
+                  value={consentNote}
+                  onChange={(e) => setConsentNote(e.target.value)}
+                  placeholder="Note (optional): when, who was present, where the form is…"
+                  className="flex-1 p-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                <button
+                  onClick={handleRecordConsent}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Record consent
+                </button>
+              </div>
+            )}
+            <p className="text-xs text-slate-400">
+              Confirm that {dossier.preferredName ?? dossier.storytellerName} has agreed to be recorded and
+              understands the points above. Not required to start a session, but strongly recommended.
+            </p>
+          </div>
+
+          {/* Refinement opt-out */}
+          <label className="flex items-start gap-3 text-sm text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dossier.refinementOptOut === true}
+              onChange={(e) => updateDossier({ refinementOptOut: e.target.checked })}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold text-slate-700">Do not upload recordings for offline refinement.</span>{' '}
+              Keeps the live transcript as recorded. Recordings still stay in the family's private storage.
+            </span>
+          </label>
+
+          {/* Export */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {exporting ? 'Preparing export…' : 'Export everything'}
+              </button>
+              {exportResult && (
+                <a
+                  href={exportResult.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-indigo-600 font-medium hover:underline"
+                >
+                  Download export ({exportResult.sessionCount} sessions, {exportResult.audioCount} recordings)
+                </a>
+              )}
+              {exportError && <span className="text-sm text-rose-600">{exportError}</span>}
+            </div>
+            <p className="text-xs text-slate-400">
+              A JSON file with every transcript, memoir, question and event, plus download links for each
+              recording. Links are valid for 7 days.
+            </p>
+          </div>
+
+          {/* Delete */}
+          {!isDossierDeleted(dossier) && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleRequestDeletion}
+                  disabled={lifecycleBusy}
+                  className="px-4 py-2 bg-white border border-rose-200 text-rose-600 rounded-xl text-sm font-semibold hover:bg-rose-50 transition-colors disabled:opacity-50"
+                >
+                  {lifecycleBusy ? 'Deleting…' : 'Delete this dossier'}
+                </button>
+                {lifecycleError && <span className="text-sm text-rose-600">{lifecycleError}</span>}
+              </div>
+              <p className="text-xs text-slate-400">
+                Hides the dossier immediately and permanently erases all recordings, transcripts, memoirs
+                and photos after {RETENTION_DAYS} days. Any family admin can restore it before then.
+              </p>
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

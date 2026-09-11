@@ -198,6 +198,26 @@ export const SessionView: React.FC = () => {
     );
   }
 
+  // Soft-deleted dossier (#171): no new sessions (firestore.rules also
+  // rejects the session create). Admins can restore from the dossier editor.
+  if (dossier.deletedAt) {
+    return (
+      <div className="max-w-md mx-auto p-8 mt-20 text-center space-y-4">
+        <h2 className="text-xl font-bold text-slate-800">This dossier has been deleted</h2>
+        <p className="text-slate-400">
+          New sessions can&apos;t be recorded for {dossier.storytellerName}.
+          {isAdmin ? ' You can restore the dossier from its editor.' : ' Ask your family admin if this is a mistake.'}
+        </p>
+        <button
+          onClick={() => navigate(isAdmin ? `/family/${familyId}/dossier/${dossierId}` : `/family/${familyId}`)}
+          className="text-indigo-600 font-semibold hover:underline"
+        >
+          {isAdmin ? 'Open dossier' : 'Go home'}
+        </button>
+      </div>
+    );
+  }
+
   const isConnected = status === ConnectionStatus.CONNECTED;
   const isConnecting = status === ConnectionStatus.CONNECTING;
   const isActive = isConnected || isConnecting;

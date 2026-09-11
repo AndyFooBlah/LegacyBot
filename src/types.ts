@@ -190,8 +190,37 @@ export interface Dossier {
   responseWaitSeconds?: number; // how long the interviewer waits after the storyteller pauses before responding (default 1.5s); maps to VoiceCommon endOfSpeechSilenceMs
   profileSummary?: string; // short rolling summary of the storyteller, regenerated after each session; injected into the prompt in place of the full biography (full bio fetched on demand via getBiography)
   inviteEmail?: string; // pre-filled by "New Family Member" flow; shown in DossierEditor invite form
+  /** Skip the post-session upload of the recording to the Gemini Files API
+   *  for offline transcript refinement (#171). The real-time transcript is
+   *  kept as-is. Admin-settable from DossierEditor. */
+  refinementOptOut?: boolean;
+  /** Record of the storyteller's consent to be recorded (#171). */
+  consent?: DossierConsent;
+  // --- Soft-delete lifecycle (#171) — SERVER-ONLY fields ---------------------
+  // Written by the requestDossierDeletion / restoreDossier callables; the
+  // client cannot set them (firestore.rules). A dossier with `deletedAt` is
+  // hidden from every list, blocks new sessions and is hard-purged by the
+  // daily cleanup once `purgeAfter` passes (30 days).
+  deletedAt?: Timestamp;
+  purgeAfter?: Timestamp;
+  deletedBy?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+/** How consent to record was obtained (#171). */
+export type ConsentMethod = 'spoken' | 'written';
+
+/**
+ * Consent record stored on the dossier. `byUid` is the admin who recorded
+ * it; `at` when; `method` how the storyteller agreed; `note` free text
+ * (e.g. "Agreed on the phone with Jane on 3 May", or where the signed form is).
+ */
+export interface DossierConsent {
+  byUid: string;
+  at: Timestamp;
+  method: ConsentMethod;
+  note: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -41,6 +41,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Dossier, InterviewQuestion } from '../types';
+import { partitionDeleted, requestDossierDeletion } from '../services/dossierLifecycle';
 
 // ---------------------------------------------------------------------------
 // Dossier List — used by the DossierList screen after login
@@ -50,12 +51,17 @@ import { Dossier, InterviewQuestion } from '../types';
  * Subscribes to Dossiers for a given family.
  * If storytellerUid is provided, filters to only dossiers assigned to that user
  * (used for storyteller-only view).
+ *
+ * Soft-deleted dossiers (#171) are excluded from `dossiers` so every list,
+ * picker and dashboard hides them by default; they are exposed separately as
+ * `deletedDossiers` for the admin "restore" UI.
  */
 export function useDossierList(
   familyId: string | undefined,
   storytellerUid?: string,
 ) {
   const [dossiers, setDossiers] = useState<Dossier[]>([]);
+  const [deletedDossiers, setDeletedDossiers] = useState<Dossier[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,7 +79,9 @@ export function useDossierList(
           ...doc.data(),
           id: doc.id,
         })) as Dossier[];
-        setDossiers(items);
+        const { live, deleted } = partitionDeleted(items);
+        setDossiers(live);
+        setDeletedDossiers(deleted);
         setLoading(false);
       },
       (err) => {
@@ -106,13 +114,18 @@ export function useDossierList(
     return docRef.id;
   }
 
-  /** Permanently delete a Dossier. */
+  /**
+   * Soft-delete a Dossier (#171). The dossier disappears from lists and is
+   * hard-purged (recordings, transcripts, everything) after a 30-day window
+   * during which an admin can restore it. Goes through a callable because
+   * the lifecycle fields are server-only.
+   */
   async function deleteDossier(dossierId: string): Promise<void> {
     if (!familyId) throw new Error('No family selected');
-    await deleteDoc(doc(db, 'families', familyId, 'dossiers', dossierId));
+    await requestDossierDeletion(familyId, dossierId);
   }
 
-  return { dossiers, loading, createDossier, deleteDossier };
+  return { dossiers, deletedDossiers, loading, createDossier, deleteDossier };
 }
 
 /**

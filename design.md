@@ -72,6 +72,9 @@ families/{familyId}/dossiers/{dossierId}
   - interviewerNotes: string
   - lastSessionAt: timestamp | null
   - lastDigestSentAt: timestamp | null
+  - refinementOptOut: boolean?          # skip the Gemini Files API refinement upload (#171)
+  - consent: { byUid, at, method: 'spoken'|'written', note }?   # consent record (#171)
+  - deletedAt, purgeAfter, deletedBy    # SERVER-ONLY soft-delete fields (#171); see 2.4
   - createdAt: timestamp
   - updatedAt: timestamp
 
@@ -161,7 +164,19 @@ families/{familyId}/invitations/{invitationId}
 {familyId}/{dossierId}/clips/{clipId}.webm        # user-created audio clips
 {familyId}/{dossierId}/promptPhotos/{photoId}     # photos shown during session
 {familyId}/{dossierId}/memoirs/{filename}         # exported memoir files
+{familyId}/{dossierId}/exports/export-{ts}.json   # dossier exports (server-written, #171)
 ```
+
+### 2.4 Dossier Lifecycle (soft-delete, purge, export — #171)
+
+Policy: **never lose data by accident**. There is no client hard-delete of a dossier (`allow delete: if false`).
+
+1. **Request** — admin calls `requestDossierDeletion` → sets `deletedAt`, `purgeAfter = deletedAt + 30 d`, `deletedBy`. `firestore.rules` rejects any client write touching these three keys, so the window cannot be shortened from the browser.
+2. **Hidden & locked** — `useDossierList` partitions soft-deleted dossiers into `deletedDossiers`; `sendDailyDigest`, `backfillContextChunks`, `generateMemoir`, `onSessionCompleted` skip them; `searchContext` filters their chunks; session creation is denied by rules and blocked in `SessionView`.
+3. **Restore** — `restoreDossier` (admin) clears the fields; FamilyDashboard lists deleted dossiers with a Restore button and DossierEditor shows a banner.
+4. **Purge** — `dailyStorageCleanup` → `purgeExpiredDossiers`: per family, `dossiers where purgeAfter <= now`, re-validated by `selectDossiersToPurge` (must have `deletedAt`, full window elapsed); then contextChunks for the dossier → Storage prefix `{familyId}/{dossierId}/` → `db.recursiveDelete(dossierRef)`. Audit row in `purgeLog/{familyId}_{dossierId}` (server-only).
+5. **Export** — `exportDossier` (admin, 5/day) writes a JSON snapshot (dossier, questions, events, facts, memoirs, analysis, media metadata, every session + transcript) with a manifest of 7-day signed URLs for recordings to `exports/` and returns a signed URL. Audio is not zipped in (follow-up).
+6. **Consent & opt-out** — `consent` is written by DossierEditor's *Data & privacy* panel (plain-language description of the Live API, Storage, and the Gemini Files API refinement hop); `refinementOptOut` is honoured at the top of the refinement branch in `onSessionCompleted`.
 
 ### 2.3 Security Model
 

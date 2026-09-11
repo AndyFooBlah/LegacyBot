@@ -23,6 +23,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { mockFirestore } from '../../__mocks__/firebase';
+
+const mockRequestDeletion = vi.fn().mockResolvedValue({ alreadyDeleted: false });
+vi.mock('../../services/dossierLifecycle', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/dossierLifecycle')>();
+  return { ...actual, requestDossierDeletion: (...args: unknown[]) => mockRequestDeletion(...args) };
+});
+
 import { useDossierList, useDossier } from '../../hooks/useDossier';
 
 beforeEach(() => {
@@ -122,14 +129,34 @@ describe('useDossierList', () => {
     ).rejects.toThrow('No family selected');
   });
 
-  it('deleteDossier calls deleteDoc', async () => {
+  it('deleteDossier soft-deletes via the requestDossierDeletion callable, never deleteDoc (#171)', async () => {
+    mockRequestDeletion.mockClear();
     const { result } = renderHook(() => useDossierList('family-1'));
 
     await act(async () => {
       await result.current.deleteDossier('d1');
     });
 
-    expect(mockFirestore.deleteDoc).toHaveBeenCalledTimes(1);
+    expect(mockRequestDeletion).toHaveBeenCalledWith('family-1', 'd1');
+    expect(mockFirestore.deleteDoc).not.toHaveBeenCalled();
+  });
+
+  it('hides soft-deleted dossiers from `dossiers` and exposes them as `deletedDossiers` (#171)', () => {
+    const deletedAt = mockFirestore.Timestamp.now();
+    mockFirestore.onSnapshot.mockImplementation((_q: any, cb: any) => {
+      cb({
+        docs: [
+          { id: 'd1', data: () => ({ storytellerName: 'Margaret' }) },
+          { id: 'd2', data: () => ({ storytellerName: 'Arthur', deletedAt, purgeAfter: deletedAt }) },
+        ],
+      });
+      return vi.fn();
+    });
+
+    const { result } = renderHook(() => useDossierList('family-1'));
+
+    expect(result.current.dossiers.map((d) => d.id)).toEqual(['d1']);
+    expect(result.current.deletedDossiers.map((d) => d.id)).toEqual(['d2']);
   });
 });
 

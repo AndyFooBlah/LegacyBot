@@ -7,6 +7,7 @@
  *   Clips:         {familyId}/{dossierId}/clips/{clipId}     (audio/webm)
  *   Prompt photos: {familyId}/{dossierId}/promptPhotos/{id}  (image/*, 50MB cap)
  *   Memoirs:       {familyId}/{dossierId}/memoirs/{filename}
+ *   Exports:       {familyId}/{dossierId}/exports/{filename}  (JSON, server-written)
  *
  * Access requires:
  *   1. The user is authenticated.
@@ -84,6 +85,14 @@ service firebase.storage {
     // Memoirs are written server-side via the Admin SDK (which bypasses these
     // rules), so clients only ever need to read them.
     match /{familyId}/{dossierId}/memoirs/{filename} {
+      allow read: if isFamilyMember(familyId);
+      allow write: if false;
+    }
+
+    // --- Dossier exports (JSON written by the exportDossier callable, #171) ---
+    // Clients receive a signed URL; direct reads are allowed for family
+    // members, writes only server-side.
+    match /{familyId}/{dossierId}/exports/{filename} {
       allow read: if isFamilyMember(familyId);
       allow write: if false;
     }

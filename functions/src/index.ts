@@ -25,6 +25,9 @@
  * resetMemberPassword:  Callable — email a password reset link to the member (admin only).
  * triggerDigestForDossier: Callable — manually send digest email (admin only).
  * generateMemoir:       Callable — generate a memoir via Gemini (admin only).
+ * requestDossierDeletion: Callable — soft-delete a dossier (30-day window) (admin only).
+ * restoreDossier:       Callable — undo a soft-delete within the window (admin only).
+ * exportDossier:        Callable — JSON export + signed audio URLs (admin only).
  *
  * Environment variables (set via functions/.env or Firebase Console):
  *   SMTP_HOST, SMTP_PORT, SMTP_USER, APP_URL
@@ -62,6 +65,13 @@ import { buildMintGeminiLiveTokenHandler } from './liveToken';
 import { buildInvokeGeminiHandler } from './invokeGemini';
 import { buildEmbedGeminiHandler } from './embedGemini';
 import { fetchWithTimeout, FetchTimeoutError, TIMEOUTS } from './httpTimeouts';
+import {
+  isDossierSoftDeleted,
+  softDeleteDossier,
+  restoreDossierDoc,
+  exportDossierToStorage,
+  RETENTION_DAYS,
+} from './dossierLifecycle';
 
 export { dailyStorageCleanup } from './scheduledCleanup';
 
@@ -932,6 +942,13 @@ export const onSessionCompleted = onDocumentUpdated(
       logger.warn('Could not look up dossier:', err);
     }
 
+    if (isDossierSoftDeleted(dossierData)) {
+      // Soft-deleted dossier (#171): no refinement upload, analysis, embedding
+      // or notification. The recording and transcript stay put until purge.
+      logger.info(`[SessionCompleted] Dossier ${dossierId} is soft-deleted — skipping post-processing`);
+      return;
+    }
+
     const storytellerName: string = dossierData.storytellerName ?? 'a storyteller';
     const durationMins = Math.round((after.durationSeconds ?? 0) / 60);
 
@@ -950,6 +967,10 @@ export const onSessionCompleted = onDocumentUpdated(
 
       if (!apiKey) {
         logger.warn('[Refine] GEMINI_API_KEY not set — skipping refinement');
+      } else if (dossierData.refinementOptOut === true) {
+        // Per-dossier opt-out (#171): the family has asked that recordings not
+        // be uploaded to the Gemini Files API for the offline pass.
+        logger.info(`[Refine] Dossier ${dossierId} has opted out of refinement — skipping`);
       } else if (!audioPath) {
         logger.info('[Refine] Session has no audioUrl — skipping refinement');
       } else if (!isSessionAudioPath(audioPath, familyId, dossierId, sessionId)) {
@@ -1169,6 +1190,7 @@ async function sendDigestForDossier(
 
   if (!dossierDoc.exists) return false;
   const dossierData = dossierDoc.data()!;
+  if (isDossierSoftDeleted(dossierData)) return false; // #171
 
   const storytellerUid: string | null = dossierData.storytellerUid ?? null;
   const preferredName: string = dossierData.preferredName ?? dossierData.storytellerName ?? 'there';
@@ -1311,6 +1333,7 @@ export const sendDailyDigest = onSchedule(
         .get();
 
       for (const dossierDoc of dossiersSnap.docs) {
+        if (isDossierSoftDeleted(dossierDoc.data())) continue; // #171
         try {
           const didSend = await sendDigestForDossier(familyId, dossierDoc.id, transporter);
           if (didSend) sent++;
@@ -1407,6 +1430,17 @@ export const generateMemoir = onCall(
     const apiKey = geminiApiKey.value();
     if (!apiKey) {
       throw new HttpsError('internal', 'GEMINI_API_KEY is not configured on this server.');
+    }
+
+    const memoirDossierSnap = await db
+      .collection('families').doc(familyId)
+      .collection('dossiers').doc(dossierId)
+      .get();
+    if (!memoirDossierSnap.exists) {
+      throw new HttpsError('not-found', 'Dossier not found.');
+    }
+    if (isDossierSoftDeleted(memoirDossierSnap.data())) {
+      throw new HttpsError('failed-precondition', 'This dossier is scheduled for deletion; restore it first.');
     }
 
     const now = admin.firestore.Timestamp.now();
@@ -1597,6 +1631,7 @@ export const backfillContextChunks = onCall(
     for (const dossierDoc of dossiersSnap.docs) {
       const dossierId = dossierDoc.id;
       const data = dossierDoc.data();
+      if (isDossierSoftDeleted(data)) continue; // #171: don't re-index deleted dossiers
 
       // Prose fields
       for (const [field, source] of [
@@ -1881,12 +1916,32 @@ export const searchContext = onCall(
       fetched.forEach((doc) => { if (doc.exists) docCache.set(doc.id, doc.data()!); });
     }
 
+    // Soft-deleted dossiers (#171) must not surface in search. Their chunks
+    // stay in the index until the purge (so a restore needs no re-embedding),
+    // so filter them here. `purgeAfter` is only ever set alongside `deletedAt`.
+    const deletedDossierIds = new Set<string>();
+    try {
+      const deletedSnap = await db
+        .collection('families').doc(familyId)
+        .collection('dossiers')
+        .where('purgeAfter', '>', admin.firestore.Timestamp.fromMillis(0))
+        .select()
+        .get();
+      deletedSnap.docs.forEach((d) => deletedDossierIds.add(d.id));
+    } catch (err) {
+      logger.warn('[searchContext] Could not list soft-deleted dossiers:', err);
+    }
+
     const scored = [...allDocIds]
       // adminNotes are the admin's private notes, not shared family history —
       // exclude them for non-admin callers (e.g. storytellers). Filtering here,
       // before the topK slice, means a storyteller still gets a full topK of
       // allowed chunks rather than a short list with admin content removed.
       .filter((id) => callerIsAdmin || docCache.get(id)?.source !== 'adminNotes')
+      .filter((id) => {
+        const dId = docCache.get(id)?.dossierId;
+        return !(typeof dId === 'string' && deletedDossierIds.has(dId));
+      })
       .map((id) => {
         const vRank = vectorRankMap.get(id) ?? (fetchCount + 1);
         const kRank = keywordRankMap.get(id) ?? (keywordRank + 1);
@@ -1916,5 +1971,75 @@ export const searchContext = onCall(
       .filter(Boolean);
 
     return { results };
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Dossier lifecycle: soft-delete / restore / export (#171)
+// ---------------------------------------------------------------------------
+//
+// Policy: "never lose data by accident". Deleting a dossier only stamps
+// deletedAt/purgeAfter/deletedBy (server-only fields — see firestore.rules);
+// the dossier is hidden and locked for RETENTION_DAYS, restorable by any
+// family admin, and then hard-purged (Firestore subtree + Storage prefix +
+// contextChunks, audited in purgeLog) by dailyStorageCleanup.
+
+function requireFamilyAndDossier(request: CallableRequest): { familyId: string; dossierId: string } {
+  const { familyId, dossierId } = (request.data ?? {}) as { familyId?: unknown; dossierId?: unknown };
+  if (typeof familyId !== 'string' || !familyId || typeof dossierId !== 'string' || !dossierId) {
+    throw new HttpsError('invalid-argument', 'familyId and dossierId are required.');
+  }
+  if (familyId.includes('/') || dossierId.includes('/')) {
+    throw new HttpsError('invalid-argument', 'Invalid identifier.');
+  }
+  return { familyId, dossierId };
+}
+
+export const requestDossierDeletion = onCall(
+  { timeoutSeconds: 30 },
+  async (request: CallableRequest) => {
+    const { familyId, dossierId } = requireFamilyAndDossier(request);
+    await verifyFamilyAdmin(request, familyId);
+    await enforceRateLimit(request.auth!.uid, 'requestDossierDeletion');
+
+    const result = await softDeleteDossier(db, familyId, dossierId, request.auth!.uid);
+    if (!result) throw new HttpsError('not-found', 'Dossier not found.');
+    return { ...result, retentionDays: RETENTION_DAYS };
+  },
+);
+
+export const restoreDossier = onCall(
+  { timeoutSeconds: 30 },
+  async (request: CallableRequest) => {
+    const { familyId, dossierId } = requireFamilyAndDossier(request);
+    await verifyFamilyAdmin(request, familyId);
+    await enforceRateLimit(request.auth!.uid, 'restoreDossier');
+
+    const ok = await restoreDossierDoc(db, familyId, dossierId, request.auth!.uid);
+    if (!ok) {
+      throw new HttpsError('not-found', 'Dossier not found — the retention window may have passed.');
+    }
+    return { restored: true };
+  },
+);
+
+export const exportDossier = onCall(
+  { timeoutSeconds: 540, memory: '1GiB', maxInstances: 3 },
+  async (request: CallableRequest) => {
+    const { familyId, dossierId } = requireFamilyAndDossier(request);
+    await verifyFamilyAdmin(request, familyId);
+    await enforceRateLimit(request.auth!.uid, 'exportDossier');
+
+    try {
+      const result = await exportDossierToStorage(
+        db, admin.storage().bucket(), familyId, dossierId, request.auth!.uid,
+      );
+      if (!result) throw new HttpsError('not-found', 'Dossier not found.');
+      return result;
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error('[exportDossier] failed', err);
+      throw new HttpsError('internal', 'Export failed.');
+    }
   },
 );

@@ -31,7 +31,7 @@ LegacyBot (publicly: BiographyBot) is a voice-first life story preservation appl
 
 ### 3.2 Archival and Persistence
 
-- **"Never Delete" Policy**: Every word spoken and every audio recording must be preserved permanently.
+- **"Never Lose Data by Accident" Policy**: Every word spoken and every audio recording is preserved by default — nothing expires on its own, and no client can hard-delete a recording, transcript or dossier. Deletion is a deliberate, reversible, audited process: an admin *requests* deletion, the dossier is immediately hidden and locked (no new sessions, excluded from digests and search), and any family admin can restore it for **30 days**. After the window a scheduled job permanently purges the dossier's Firestore subtree, its Storage prefix (recordings, media, clips, photos, exports) and its search index, recording an audit row. Families can export everything (JSON + recording download links) at any time, record the storyteller's consent on the dossier, and opt a dossier out of the post-session refinement upload.
 - **Audio Format**: Sessions are recorded as mixed audio (storyteller + interviewer) and stored in Google Cloud Storage as WebM/Opus at 128 kbps (~58 MB/hour). Both sides of the conversation are captured.
 - **Real-time Transcripts**: Transcripts are streamed to Firestore entry-by-entry during the session, not batched at the end.
 - **Partial Session Recovery**: If the connection drops, all audio chunks and transcript entries captured up to that point are saved. No data is lost on ungraceful disconnection.

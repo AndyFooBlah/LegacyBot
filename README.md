@@ -278,12 +278,12 @@ Additional safeguards:
 ### Where user data is stored
 
 #### Firebase Cloud Firestore
-Firestore holds all structured application data: family records, dossiers, session metadata, transcripts, events, memoirs, and question progress. Data is **encrypted at rest (AES-256) and in transit (TLS)** by default. You control retention — there is no automatic expiry unless you configure TTL policies. After account deletion, Google removes data within 180 days.
+Firestore holds all structured application data: family records, dossiers, session metadata, transcripts, events, memoirs, and question progress. Data is **encrypted at rest (AES-256) and in transit (TLS)** by default. Nothing expires on its own. Deleting a dossier is a soft-delete: it is hidden and locked immediately, restorable by any family admin for **30 days**, and then permanently purged (Firestore subtree, Storage prefix and search index) by a scheduled job that writes an audit row. Clients cannot hard-delete a dossier or shorten the window — the lifecycle fields are server-only. After account deletion, Google removes residual data within 180 days.
 
 The region your Firestore database is hosted in is set at creation time. If you want data to stay in a specific geography (e.g., the EU), you must select that region when creating the database — it cannot be changed later. See [available locations](https://cloud.google.com/about/locations/).
 
 #### Firebase Cloud Storage
-Cloud Storage holds audio recordings (WebM/Opus) and uploaded media files. The same encryption-at-rest and in-transit protections apply. Recordings persist until explicitly deleted; there is no automatic expiry. As with Firestore, the storage bucket's region is fixed at creation.
+Cloud Storage holds audio recordings (WebM/Opus), uploaded media files and dossier exports. The same encryption-at-rest and in-transit protections apply. Recordings persist until the dossier's 30-day deletion window closes; there is no other automatic expiry. Families can export a dossier at any time (JSON of every transcript, memoir, question and event plus 7-day signed download links for each recording) from the dossier editor. As with Firestore, the storage bucket's region is fixed at creation.
 
 #### Firebase Authentication
 Auth stores user account records (email, hashed password, sign-in history). Unlike Firestore and Cloud Storage, **Firebase Auth always processes data in the United States** — there is no regional configuration option. If strict EU data residency is a requirement, this is a material constraint.
@@ -304,6 +304,10 @@ To check your current tier: visit the [Google AI Studio](https://aistudio.google
 
 On the paid tier, conversation data is retained only transiently for abuse detection purposes and is not stored long-term by Google.
 
+#### Google Gemini Files API (post-session refinement)
+
+After each session completes, a Cloud Function uploads the session recording to the **Gemini Files API** and runs an offline transcript-refinement pass (`gemini-3.1-pro-preview` audio input) to produce higher-fidelity text; the real-time transcript is kept in `editHistory`. Files uploaded this way are stored by Google for **up to 48 hours** and then deleted automatically; the same paid-tier data-processing terms apply. This is the only time a full recording leaves your Firebase project. A per-dossier **"Do not upload recordings for offline refinement"** switch in the dossier editor disables the hop entirely, and the dossier editor's *Data & privacy* panel explains it in plain language alongside a consent record (who confirmed the storyteller agreed, when, verbally or in writing).
+
 ### Data residency and the Cloud Data Processing Addendum
 
 When billing is enabled, Google's [Cloud Data Processing Addendum (CDPA)](https://cloud.google.com/terms/data-processing-terms) applies. Under the CDPA, Google acts as a data processor rather than a data controller — it processes data only on your documented instructions. This is the contractual basis for GDPR compliance.
@@ -314,11 +318,12 @@ If you are operating in the EU or processing data from EU residents, confirm tha
 
 ```
 Storyteller voice → Gemini Live API (transient, paid tier = not retained or used for training)
-                  → useAudioMixer → WebM/Opus file → Firebase Cloud Storage (persists until deleted)
+                  → useAudioMixer → WebM/Opus file → Firebase Cloud Storage (kept until 30 days after a deletion request)
+                  → onSessionCompleted → Gemini Files API (≤48 h, unless the dossier opts out) → refined transcript
 
-Gemini transcription → useSession → Firestore transcript/entries (persists until deleted)
+Gemini transcription → useSession → Firestore transcript/entries (kept until 30 days after a deletion request)
 
-Family data, dossiers, events, memoirs → Firestore (persists until deleted)
+Family data, dossiers, events, memoirs → Firestore (soft-delete → 30-day restore window → audited purge)
 
 User accounts → Firebase Authentication (US only)
 ```

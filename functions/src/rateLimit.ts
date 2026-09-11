@@ -55,6 +55,12 @@ export const RATE_LIMITS = {
   // URLs; keep this generous (it only mints read URLs for the caller's own
   // family) while still bounding automated enumeration.
   getMediaUrl: 2000,
+  // Dossier lifecycle (#171). Export walks every session/transcript and signs
+  // a URL per recording, so keep it tight; delete/restore are cheap but there
+  // is no legitimate reason to flip a dossier dozens of times a day.
+  requestDossierDeletion: 20,
+  restoreDossier: 20,
+  exportDossier: 5,
 } as const;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

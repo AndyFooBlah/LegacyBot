@@ -25,11 +25,16 @@
  *      `status: 'error'`. The client normally hides/reclaims these, but
  *      orphans can accumulate on retries — sweep error rows older than 7
  *      days to keep the collection tidy.
+ *
+ * #171: soft-deleted dossiers whose `purgeAfter` has passed are hard-purged
+ *       (Firestore subtree + Storage prefix + contextChunks) with an audit
+ *       row in `purgeLog`. See dossierLifecycle.ts.
  */
 
 import { logger } from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
+import { purgeExpiredDossiers } from './dossierLifecycle';
 
 const WIKI_CACHE_TTL_DAYS = 30;
 const MEMOIR_ERROR_TTL_DAYS = 7;
@@ -47,9 +52,12 @@ export const dailyStorageCleanup = onSchedule(
     const results = await Promise.allSettled([
       cleanWikipediaCache(),
       cleanErrorMemoirs(),
+      purgeExpiredDossiers(admin.firestore(), admin.storage().bucket()).then((purged) => {
+        logger.info(`[purgeExpiredDossiers] Purged ${purged.length} dossier(s)`);
+      }),
     ]);
 
-    const names = ['cleanWikipediaCache', 'cleanErrorMemoirs'];
+    const names = ['cleanWikipediaCache', 'cleanErrorMemoirs', 'purgeExpiredDossiers'];
     for (const [i, r] of results.entries()) {
       if (r.status === 'rejected') {
         logger.error(`[storageCleanup] ${names[i]} failed:`, r.reason);

@@ -40,6 +40,7 @@ import {
 } from '../../hooks/useFamily';
 import { useFamilyInvitations } from '../../hooks/useInvitations';
 import { useDossierList } from '../../hooks/useDossier';
+import { formatPurgeDate, restoreDossier } from '../../services/dossierLifecycle';
 import { FamilyNav } from './FamilyNav';
 import { FamilyMember, MemberType } from '../../types';
 
@@ -94,7 +95,20 @@ export const FamilyDashboard: React.FC = () => {
   const { family, loading: familyLoading } = useFamily(familyId);
   const { members, loading: membersLoading } = useFamilyMembers(familyId);
   const { invitations, loading: invitesLoading, cancelInvite } = useFamilyInvitations(familyId);
-  const { dossiers, loading: dossiersLoading, createDossier } = useDossierList(familyId);
+  const { dossiers, deletedDossiers, loading: dossiersLoading, createDossier } = useDossierList(familyId);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  async function handleRestore(dossierId: string) {
+    if (!familyId) return;
+    setRestoringId(dossierId);
+    try {
+      await restoreDossier(familyId, dossierId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not restore');
+    } finally {
+      setRestoringId(null);
+    }
+  }
 
   // Session stats keyed by storytellerUid
   const [sessionStats, setSessionStats] = useState<Map<string, SessionStats>>(new Map());
@@ -394,6 +408,41 @@ export const FamilyDashboard: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Recently deleted dossiers — restorable within the retention window (#171) */}
+      {deletedDossiers.length > 0 && (
+        <section className="bg-rose-50 rounded-2xl border border-rose-200 p-6 shadow-sm space-y-3">
+          <h4 className="text-sm font-bold text-rose-700 uppercase tracking-wider">Recently deleted</h4>
+          <p className="text-xs text-rose-600">
+            These storytellers are hidden and will be permanently erased on the date shown unless restored.
+          </p>
+          <div className="space-y-2">
+            {deletedDossiers.map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 text-sm">
+                <div className="min-w-0">
+                  <span className="font-medium text-slate-700">{d.storytellerName || 'Unnamed'}</span>
+                  <span className="text-xs text-slate-500"> · erased {formatPurgeDate(d)}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => navigate(`/family/${familyId}/dossier/${d.id}`)}
+                    className="text-xs text-slate-600 hover:underline"
+                  >
+                    Open
+                  </button>
+                  <button
+                    onClick={() => handleRestore(d.id!)}
+                    disabled={restoringId === d.id}
+                    className="px-3 py-1.5 text-xs font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
+                  >
+                    {restoringId === d.id ? 'Restoring…' : 'Restore'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Rebuild memory index */}
       <section className="pt-4 border-t border-slate-100">
