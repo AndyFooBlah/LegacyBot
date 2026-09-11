@@ -1,6 +1,7 @@
 {
   "name": "legacybot-functions",
   "private": true,
+  "license": "Apache-2.0",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
