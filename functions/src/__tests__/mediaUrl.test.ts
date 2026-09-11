@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { describe, it, expect } from 'vitest';
-import { parseMediaPathFamilyId } from '../mediaPath';
+import { parseMediaPathFamilyId, isSessionAudioPath, sessionAudioPath } from '../mediaPath';
 
 describe('parseMediaPathFamilyId', () => {
   it('returns the familyId (first segment) for a valid media path', () => {
@@ -36,5 +36,32 @@ describe('parseMediaPathFamilyId', () => {
   it('rejects paths shallower than familyId/dossierId/name', () => {
     expect(() => parseMediaPathFamilyId('fam1/onlytwo')).toThrow(/Invalid media path/);
     expect(() => parseMediaPathFamilyId('fam1')).toThrow(/Invalid media path/);
+  });
+});
+
+describe('isSessionAudioPath (#166)', () => {
+  const ok = isSessionAudioPath;
+  it('accepts exactly the canonical {familyId}/{dossierId}/{sessionId}.webm path', () => {
+    expect(sessionAudioPath('fam1', 'dosA', 'sess9')).toBe('fam1/dosA/sess9.webm');
+    expect(ok('fam1/dosA/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(true);
+  });
+
+  it('rejects another family or dossier prefix', () => {
+    expect(ok('fam2/dosA/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('fam1/dosB/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+  });
+
+  it('rejects other objects under the right prefix (other sessions, clips, media)', () => {
+    expect(ok('fam1/dosA/other.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('fam1/dosA/clips/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('fam1/dosA/sess9.webm/../x.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+  });
+
+  it('rejects non-string, empty, absolute and traversal values', () => {
+    expect(ok(undefined, 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok(null, 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('', 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('/fam1/dosA/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
+    expect(ok('fam1/../fam2/dosA/sess9.webm', 'fam1', 'dosA', 'sess9')).toBe(false);
   });
 });

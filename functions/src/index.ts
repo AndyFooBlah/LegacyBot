@@ -56,7 +56,7 @@ import {
 import { enforceRateLimit, reserveMonthlyRefinement } from './rateLimit';
 import { buildRefineTranscriptHandler, REFINEMENT_MODEL } from './refineTranscript';
 import { alignRefinedToEntries } from './transcriptAlignment';
-import { parseMediaPathFamilyId } from './mediaPath';
+import { parseMediaPathFamilyId, isSessionAudioPath } from './mediaPath';
 import { buildCacheWikipediaArticleHandler } from './cacheWikipedia';
 import { buildMintGeminiLiveTokenHandler } from './liveToken';
 import { buildInvokeGeminiHandler } from './invokeGemini';
@@ -952,6 +952,13 @@ export const onSessionCompleted = onDocumentUpdated(
         logger.warn('[Refine] GEMINI_API_KEY not set — skipping refinement');
       } else if (!audioPath) {
         logger.info('[Refine] Session has no audioUrl — skipping refinement');
+      } else if (!isSessionAudioPath(audioPath, familyId, dossierId, sessionId)) {
+        // audioUrl is client-writable: refuse to download anything other than
+        // this session's own canonical recording object (#166).
+        logger.warn(
+          `[Refine] Session ${sessionId} audioUrl does not match its canonical ` +
+          `recording path — skipping refinement`,
+        );
       } else if (after.refinedAt) {
         logger.info('[Refine] Session already refined — skipping');
       } else {

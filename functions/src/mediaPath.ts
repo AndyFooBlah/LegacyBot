@@ -32,3 +32,29 @@ export function parseMediaPathFamilyId(path: unknown): string {
   }
   return segments[0];
 }
+
+/**
+ * Canonical Storage object path for a session's audio recording. Mirrors the
+ * client upload path in useUnifiedSession and the depth-3 rule in
+ * storage.rules (`{familyId}/{dossierId}/{sessionId}.webm`).
+ */
+export function sessionAudioPath(familyId: string, dossierId: string, sessionId: string): string {
+  return `${familyId}/${dossierId}/${sessionId}.webm`;
+}
+
+/**
+ * True only if `audioPath` is exactly the canonical recording path for this
+ * session. `session.audioUrl` is client-written (storytellers may update
+ * their own sessions), so before the refinement pipeline downloads and
+ * transcribes whatever it points at we must check it names this session's
+ * own object — otherwise a caller could point it at another family's
+ * recording and have it transcribed into their transcript (#166).
+ */
+export function isSessionAudioPath(
+  audioPath: unknown,
+  familyId: string,
+  dossierId: string,
+  sessionId: string,
+): audioPath is string {
+  return typeof audioPath === 'string' && audioPath === sessionAudioPath(familyId, dossierId, sessionId);
+}
