@@ -308,26 +308,3 @@ ${transcript}`,
     return fallback;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Transcript cleanup (#99)
-// ---------------------------------------------------------------------------
-
-/**
- * Produce a clean, readable version of a raw speech-to-text transcript turn.
- *
- * Uses Gemini Flash to correct transcription errors, fix punctuation/
- * capitalisation, and remove filler words ("um", "uh", "you know").
- * Content is never summarised or omitted.
- *
- * Called asynchronously after each turn is committed to Firestore so it
- * does not block the live session.
- */
-export async function cleanTranscriptText(rawText: string): Promise<string> {
-  if (!rawText.trim()) return rawText;
-  const response = await invokeGemini({
-    model: 'gemini-3.1-flash-lite-preview',
-    contents: `Clean this speech transcript for readability. Fix transcription errors, correct punctuation and capitalisation, and remove filler words like "um", "uh", "you know", "like" when used as fillers. Do NOT summarise, shorten, or omit any content. Return ONLY the cleaned text — no explanation, no quotes, no prefix.\n\n${rawText}`,
-  });
-  return response.text?.trim() ?? rawText;
-}

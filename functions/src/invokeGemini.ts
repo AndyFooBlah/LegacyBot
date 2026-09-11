@@ -43,8 +43,11 @@ const ALLOWED_MODELS = new Set<string>([
   'gemini-3.1-pro-preview',
   'gemini-3-flash-preview',
   'gemini-3.1-flash-preview',
-  'gemini-3.1-flash-lite-preview',
-  'gemini-2.5-flash',
+  // Stable Flash-Lite, used by @andyfooblah/knowledge-common's Wikipedia
+  // relevance filter (>= 1.3.1). gemini-3.1-flash-lite-preview was shut down
+  // upstream (returns 404) and has been removed; re-verify IDs against
+  // https://ai.google.dev/gemini-api/docs/models before adding any model here.
+  'gemini-3.5-flash-lite',
   'gemini-embedding-001',
 ]);
 

@@ -63,7 +63,7 @@ describe('invokeGemini', () => {
   it('throws invalid-argument if contents exceeds the input-size ceiling', async () => {
     const request = {
       auth: { uid: 'u1' },
-      data: { model: 'gemini-2.5-flash', contents: 'x'.repeat(200_001) },
+      data: { model: 'gemini-3-flash-preview', contents: 'x'.repeat(200_001) },
     } as any;
     await expect(handler(request)).rejects.toThrow(HttpsError);
     await expect(handler(request)).rejects.toThrow(/too large/);
@@ -73,7 +73,7 @@ describe('invokeGemini', () => {
   it('calls Gemini and returns the response', async () => {
     const request = { 
       auth: { uid: 'u1' }, 
-      data: { model: 'gemini-2.5-flash', contents: [{ role: 'user', parts: [{ text: 'hi' }] }] } 
+      data: { model: 'gemini-3-flash-preview', contents: [{ role: 'user', parts: [{ text: 'hi' }] }] } 
     } as any;
     
     mockGenerateContent.mockResolvedValue({
@@ -87,7 +87,7 @@ describe('invokeGemini', () => {
     expect(result.text).toBe('Hello!');
     expect(result.usageMetadata).toBeDefined();
     expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
     }));
   });
 
@@ -95,7 +95,7 @@ describe('invokeGemini', () => {
     const request = { 
       auth: { uid: 'u1' }, 
       data: { 
-        model: 'gemini-2.5-flash', 
+        model: 'gemini-3-flash-preview', 
         contents: 'hi',
         config: { maxOutputTokens: 999999 } 
       } 

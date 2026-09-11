@@ -244,7 +244,7 @@ The AI is given tools via `buildSystemInstruction()` in `src/services/gemini.ts`
 - **`getJoke()`** — random joke from JokeAPI v2.
 - **`searchContext(query, topK, familyId)`** — semantic vector search across the family's accumulated knowledge (biographies, transcripts, events, misc facts, questions) via `searchContext` Cloud Function; uses 768-dim `gemini-embedding-001` embeddings stored in `families/{familyId}/contextChunks`.
 
-**Date/time utilities** (`src/services/dateTimeUtils.ts`, #112, #114):
+**Date/time utilities** (provided by `@andyfooblah/knowledge-common` — `computeTimeDifferenceTool`, `computeTimeOffsetTool`, `getTimeDifference`, `getTimeOffset`; the former local copy `src/services/dateTimeUtils.ts` was removed in #170; #112, #114):
 
 LLM-assisted helpers for computing and formatting intervals involving vague or natural-language temporal expressions that standard date-parsing cannot handle.
 
