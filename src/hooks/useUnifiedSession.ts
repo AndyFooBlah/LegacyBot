@@ -59,7 +59,7 @@ import {
   getTimeOffset,
 } from '@andyfooblah/knowledge-common';
 import { Message, Dossier, InterviewQuestion, FamilyMember, PromptPhoto, TranscriptEntry, ConnectionStatus } from '../types';
-import { buildSessionInstruction } from '../services/gemini';
+import { buildSessionInstruction, LIVE_MODEL, LIVE_THINKING_LEVEL } from '../services/gemini';
 import { getJoke, searchPlace, getDistanceBetweenPlaces, getWeather, searchContext } from '../services/externalSearch';
 import {
   updateQuestionStateInFirestore,
@@ -686,6 +686,11 @@ export function useUnifiedSession({
     // See TURN_MODE at the top of this file to switch.
     endOfSpeechSensitivity: 'LOW',
     manualTurnControl: TURN_MODE === 'manual',
+    // gemini-3.8-live (stable) replaces gemini-3.1-flash-live-preview at the
+    // same price. It rejects thinkingConfig outright, so thinkingLevel must be
+    // 'none' — VoiceCommon still defaults to MINIMAL for other consumers.
+    liveModel: LIVE_MODEL,
+    thinkingLevel: LIVE_THINKING_LEVEL,
   });
 
   // Keep messagesLatestRef and sessionIdForAnalysisRef up to date

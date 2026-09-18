@@ -51,7 +51,7 @@ interface TranscriptFeedProps {
   sessionId: string | null;
   /**
    * When true, show an animated "Listening…" placeholder on the user's side.
-   * The native-audio model (gemini-3.1-flash-live-preview) only sends the
+   * The native-audio Live model only sends the
    * user's transcription once, at end-of-turn, so their words can't stream in
    * word-by-word like the bot's. This placeholder gives real-time feedback that
    * the mic is open while they speak; it's replaced by their actual bubble when

@@ -16,7 +16,7 @@
  * Gemini Live API session management for LegacyBot.
  *
  * Encapsulates the configuration and system instruction generation for
- * the Gemini Flash Live native-audio model (gemini-3.1-flash-live-preview).
+ * the Gemini Live native-audio model (see LIVE_MODEL below).
  * The interviewer engine uses
  * function calling (updateQuestionStatus) to create a closed-loop system
  * where the bot tracks what it has learned and what it still needs to ask.
@@ -31,6 +31,23 @@
  *
  * References: design.md §3.2 | GitHub Issues #12, #33, #34, #38
  */
+
+/**
+ * Gemini Live model used for the real-time interview and Talk sessions.
+ *
+ * `gemini-3.8-live` (stable, released 2026-09-15) replaced
+ * `gemini-3.1-flash-live-preview` (preview). Identical pricing:
+ * $0.75/1M text in, $3.00/1M audio in, $4.50/1M text out, $12.00/1M audio out.
+ *
+ * This model REJECTS `thinkingConfig` — sending it closes the WebSocket with
+ * 1007 "Thinking level is not supported for this model". Callers must pass
+ * VoiceCommon's `thinkingLevel: 'none'`, or omit the field on a direct
+ * ai.live.connect() call.
+ */
+export const LIVE_MODEL = 'gemini-3.8-live';
+
+/** VoiceCommon `thinkingLevel` value matching {@link LIVE_MODEL}. */
+export const LIVE_THINKING_LEVEL = 'none' as const;
 
 import { Dossier, InterviewQuestion, FamilyMember, PersonalityMode, PromptPhoto } from '../types';
 import { TalkContext } from './storage';

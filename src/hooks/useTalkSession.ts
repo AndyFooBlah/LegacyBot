@@ -32,17 +32,17 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration, ThinkingLevel } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
 import { Message, Dossier, FamilyMember, ConnectionStatus } from '../types';
 import { useAudioMixer } from './useAudioMixer';
 import { encode, decode, decodeAudioData } from '../services/audioUtils';
-import { buildTalkSystemInstruction } from '../services/gemini';
+import { buildTalkSystemInstruction, LIVE_MODEL } from '../services/gemini';
 import { mintGeminiLiveToken } from '../services/geminiBroker';
 import { getTalkContext, saveMiscFact, TalkContext } from '../services/storage';
 import { searchWikipedia } from '@andyfooblah/knowledge-common';
 import { getJoke, searchPlace, getDistanceBetweenPlaces, getWeather, searchContext } from '../services/externalSearch';
 
-const GEMINI_MODEL = 'gemini-3.1-flash-live-preview';
+const GEMINI_MODEL = LIVE_MODEL;
 
 export interface UseTalkSessionOptions {
   familyId: string;
@@ -590,7 +590,7 @@ export function useTalkSession({
         },
         config: {
           responseModalities: [Modality.AUDIO],
-          thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          // NOTE: gemini-3.8-live rejects thinkingConfig (WebSocket 1007).
           systemInstruction,
           speechConfig: {
             voiceConfig: {

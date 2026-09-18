@@ -23,6 +23,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { LIVE_MODEL } from '../../services/gemini';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../hooks/useAuth';
@@ -82,14 +83,14 @@ export const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ uid: uidPr
         probe('Places', () => searchPlace('New York, NY')),
         probe('Distance', () => getDistanceBetweenPlaces('New York, NY', 'Los Angeles, CA')),
         probe('Weather', () => getWeather('New York, NY')),
-        probe('Gemini 3.1 Flash Live', async () => {
+        probe('Gemini Live', async () => {
           // Mint a single-use ephemeral token via the server-side broker, then
           // use it to open a WebSocket to BidiGenerateContent and confirm the
           // connection is accepted. This exercises the same auth path the
           // real session uses (broker → ephemeral token → Live WS) so a green
           // probe means production sessions are reachable.
           const { token } = await mintGeminiLiveToken();
-          const model = 'gemini-3.1-flash-live-preview';
+          const model = LIVE_MODEL;
           const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${token}`;
           await new Promise<void>((resolve, reject) => {
             const ws = new WebSocket(url);
