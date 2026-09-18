@@ -15,7 +15,7 @@
 /**
  * Embedding helpers for LegacyBot semantic search (#108).
  *
- * Uses Google's text-embedding-004 model (768 dimensions) via the Gemini API.
+ * Uses Google's gemini-embedding-001 model (768-dimension output) via the Gemini API.
  * Supports separate task types for indexing vs querying, which improves
  * retrieval quality.
  *
@@ -64,7 +64,7 @@ const EMBEDDING_MODEL = 'gemini-embedding-001';
 const MIN_CHUNK_LENGTH = 20;
 
 /**
- * Embed an array of text strings using text-embedding-004.
+ * Embed an array of text strings using gemini-embedding-001.
  * Returns one 768-dimensional vector per input text.
  */
 export async function embedTexts(
