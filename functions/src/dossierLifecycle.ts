@@ -40,7 +40,12 @@
  */
 
 import { logger } from 'firebase-functions';
-import * as admin from 'firebase-admin';
+import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import type { Firestore, CollectionReference } from 'firebase-admin/firestore';
+import type { Storage } from 'firebase-admin/storage';
+
+/** The default bucket handle returned by `getStorage().bucket()`. */
+type Bucket = ReturnType<Storage['bucket']>;
 
 // ---------------------------------------------------------------------------
 // Pure helpers
@@ -120,8 +125,6 @@ export function exportJsonReplacer(_key: string, value: unknown): unknown {
 // Soft delete / restore
 // ---------------------------------------------------------------------------
 
-type Firestore = admin.firestore.Firestore;
-
 function dossierRef(db: Firestore, familyId: string, dossierId: string) {
   return db.collection('families').doc(familyId).collection('dossiers').doc(dossierId);
 }
@@ -153,8 +156,8 @@ export async function softDeleteDossier(
     };
   }
 
-  const deletedAt = admin.firestore.Timestamp.fromMillis(nowMs);
-  const purgeAfter = admin.firestore.Timestamp.fromMillis(computePurgeAfterMs(nowMs));
+  const deletedAt = Timestamp.fromMillis(nowMs);
+  const purgeAfter = Timestamp.fromMillis(computePurgeAfterMs(nowMs));
   await ref.update({ deletedAt, purgeAfter, deletedBy: byUid, updatedAt: deletedAt });
   logger.info(`[Lifecycle] Dossier ${familyId}/${dossierId} soft-deleted; purge after ${purgeAfter.toDate().toISOString()}`);
   return {
@@ -176,14 +179,14 @@ export async function restoreDossierDoc(
   if (!snap.exists) return false;
   if (!isDossierSoftDeleted(snap.data())) return true;
 
-  const del = admin.firestore.FieldValue.delete();
+  const del = FieldValue.delete();
   await ref.update({
     deletedAt: del,
     purgeAfter: del,
     deletedBy: del,
-    restoredAt: admin.firestore.Timestamp.now(),
+    restoredAt: Timestamp.now(),
     restoredBy: byUid,
-    updatedAt: admin.firestore.Timestamp.now(),
+    updatedAt: Timestamp.now(),
   });
   logger.info(`[Lifecycle] Dossier ${familyId}/${dossierId} restored by ${byUid}`);
   return true;
@@ -209,7 +212,7 @@ export interface PurgeSummary {
  */
 export async function purgeDossier(
   db: Firestore,
-  bucket: ReturnType<admin.storage.Storage['bucket']>,
+  bucket: Bucket,
   familyId: string,
   dossierId: string,
 ): Promise<PurgeSummary> {
@@ -232,7 +235,7 @@ export async function purgeDossier(
     deletedAt: data.deletedAt ?? null,
     deletedBy: data.deletedBy ?? null,
     purgeAfter: data.purgeAfter ?? null,
-    startedAt: admin.firestore.Timestamp.now(),
+    startedAt: Timestamp.now(),
     status: 'started',
   }, { merge: true });
 
@@ -264,7 +267,7 @@ export async function purgeDossier(
 
   await auditRef.set({
     ...summary,
-    finishedAt: admin.firestore.Timestamp.now(),
+    finishedAt: Timestamp.now(),
     status: 'done',
   }, { merge: true });
 
@@ -283,11 +286,11 @@ export async function purgeDossier(
  */
 export async function purgeExpiredDossiers(
   db: Firestore,
-  bucket: ReturnType<admin.storage.Storage['bucket']>,
+  bucket: Bucket,
   nowMs = Date.now(),
   maxPerRun = 20,
 ): Promise<PurgeSummary[]> {
-  const now = admin.firestore.Timestamp.fromMillis(nowMs);
+  const now = Timestamp.fromMillis(nowMs);
   const purged: PurgeSummary[] = [];
 
   const familiesSnap = await db.collection('families').select().get();
@@ -342,7 +345,7 @@ export interface ExportResult {
 }
 
 async function readCollection(
-  ref: admin.firestore.CollectionReference,
+  ref: CollectionReference,
 ): Promise<Array<Record<string, unknown>>> {
   const snap = await ref.get();
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -362,7 +365,7 @@ async function readCollection(
  */
 export async function exportDossierToStorage(
   db: Firestore,
-  bucket: ReturnType<admin.storage.Storage['bucket']>,
+  bucket: Bucket,
   familyId: string,
   dossierId: string,
   requestedBy: string,

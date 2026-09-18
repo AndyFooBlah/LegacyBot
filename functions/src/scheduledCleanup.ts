@@ -33,7 +33,8 @@
 
 import { logger } from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { purgeExpiredDossiers } from './dossierLifecycle';
 
 const WIKI_CACHE_TTL_DAYS = 30;
@@ -52,7 +53,7 @@ export const dailyStorageCleanup = onSchedule(
     const results = await Promise.allSettled([
       cleanWikipediaCache(),
       cleanErrorMemoirs(),
-      purgeExpiredDossiers(admin.firestore(), admin.storage().bucket()).then((purged) => {
+      purgeExpiredDossiers(getFirestore(), getStorage().bucket()).then((purged) => {
         logger.info(`[purgeExpiredDossiers] Purged ${purged.length} dossier(s)`);
       }),
     ]);
@@ -75,8 +76,8 @@ export const dailyStorageCleanup = onSchedule(
  * long backlog has built up.
  */
 async function cleanWikipediaCache(): Promise<void> {
-  const db = admin.firestore();
-  const cutoff = admin.firestore.Timestamp.fromMillis(
+  const db = getFirestore();
+  const cutoff = Timestamp.fromMillis(
     Date.now() - WIKI_CACHE_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 
@@ -110,8 +111,8 @@ async function cleanWikipediaCache(): Promise<void> {
  * the family/dossier tree.
  */
 async function cleanErrorMemoirs(): Promise<void> {
-  const db = admin.firestore();
-  const cutoff = admin.firestore.Timestamp.fromMillis(
+  const db = getFirestore();
+  const cutoff = Timestamp.fromMillis(
     Date.now() - MEMOIR_ERROR_TTL_DAYS * 24 * 60 * 60 * 1000,
   );
 

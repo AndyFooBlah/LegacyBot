@@ -24,7 +24,8 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import type { Query } from 'firebase-admin/firestore';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,7 +50,7 @@ export interface ContextChunk {
   // VectorValue is from the underlying @google-cloud/firestore package
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   embedding: any;
-  embeddedAt: admin.firestore.Timestamp;
+  embeddedAt: Timestamp;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +163,7 @@ export function chunkTranscript(
 // Chunk management helpers
 // ---------------------------------------------------------------------------
 
-const db = () => admin.firestore();
+const db = () => getFirestore();
 
 /**
  * Delete all existing contextChunks for a given source document.
@@ -178,7 +179,7 @@ export async function deleteChunksForSource(
     .collection('families').doc(familyId)
     .collection('contextChunks')
     .where('source', '==', source)
-    .where('sourceDocId', '==', sourceDocId) as admin.firestore.Query;
+    .where('sourceDocId', '==', sourceDocId) as Query;
 
   if (dossierId) {
     query = query.where('dossierId', '==', dossierId);
@@ -208,7 +209,7 @@ export async function writeChunks(
   if (!texts.length) return;
 
   const vectors = await embedTexts(texts, 'RETRIEVAL_DOCUMENT', apiKey);
-  const now = admin.firestore.Timestamp.now();
+  const now = Timestamp.now();
   const collRef = db()
     .collection('families').doc(familyId)
     .collection('contextChunks');
@@ -222,7 +223,7 @@ export async function writeChunks(
       sourceDocId,
       source,
       text: texts[i],
-      embedding: admin.firestore.FieldValue.vector(vectors[i]),
+      embedding: FieldValue.vector(vectors[i]),
       embeddedAt: now,
     };
     batch.set(collRef.doc(), chunk);

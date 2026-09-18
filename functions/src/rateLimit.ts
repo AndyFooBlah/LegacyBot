@@ -29,7 +29,7 @@
  * the counters.
  */
 
-import * as admin from 'firebase-admin';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 
 /**
@@ -76,7 +76,7 @@ function utcDayKey(now = new Date()): string {
 export async function enforceRateLimit(uid: string, bucket: RateLimitBucket): Promise<void> {
   const cap = RATE_LIMITS[bucket];
   const dayKey = utcDayKey();
-  const db = admin.firestore();
+  const db = getFirestore();
   const docRef = db.collection('_usage').doc(uid).collection('daily').doc(dayKey);
   const field = `${bucket}Count`;
 
@@ -93,13 +93,13 @@ export async function enforceRateLimit(uid: string, bucket: RateLimitBucket): Pr
 
     if (snap.exists) {
       tx.update(docRef, {
-        [field]: admin.firestore.FieldValue.increment(1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        [field]: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     } else {
       tx.set(docRef, {
         [field]: 1,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
   });
@@ -134,7 +134,7 @@ export async function reserveMonthlyRefinement(
   cap: number = REFINEMENT_MONTHLY_CAP_PER_DOSSIER,
 ): Promise<boolean> {
   const monthKey = utcMonthKey();
-  const db = admin.firestore();
+  const db = getFirestore();
   const docRef = db
     .collection('_usage').doc('refinement')
     .collection('monthly').doc(`${dossierId}_${monthKey}`);
@@ -146,15 +146,15 @@ export async function reserveMonthlyRefinement(
 
     if (snap.exists) {
       tx.update(docRef, {
-        count: admin.firestore.FieldValue.increment(1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        count: FieldValue.increment(1),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     } else {
       tx.set(docRef, {
         dossierId,
         monthKey,
         count: 1,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
       });
     }
     return true;

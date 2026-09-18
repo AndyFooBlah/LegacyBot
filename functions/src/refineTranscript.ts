@@ -27,7 +27,7 @@
  * having to byte-slice a WebM/Opus container.
  */
 
-import * as admin from 'firebase-admin';
+import { getStorage } from 'firebase-admin/storage';
 import * as logger from 'firebase-functions/logger';
 import { GoogleGenAI, Type } from '@google/genai';
 import type { RefinedUtterance } from './transcriptAlignment';
@@ -86,7 +86,7 @@ export interface RefineDeps {
 
 /** Default GCS download: audioUrl on the session doc is an object PATH. */
 async function defaultDownloadAudio(objectPath: string): Promise<DownloadedAudio> {
-  const file = admin.storage().bucket().file(objectPath);
+  const file = getStorage().bucket().file(objectPath);
   const [meta] = await file.getMetadata();
   const [buffer] = await file.download();
   const mimeType = (meta.contentType ?? 'audio/webm').split(';')[0].trim();

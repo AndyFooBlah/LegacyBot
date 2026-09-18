@@ -45,7 +45,11 @@ import {
   onDocumentWritten,
 } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
+import { getStorage } from 'firebase-admin/storage';
 import * as nodemailer from 'nodemailer';
 import { runGapAnalysis, saveGapAnalysis, getGapAnalysis } from './analysis';
 import { generateMemoirContent } from './memoir';
@@ -75,7 +79,7 @@ import {
 
 export { dailyStorageCleanup } from './scheduledCleanup';
 
-admin.initializeApp();
+initializeApp();
 
 /**
  * Escape a string for safe interpolation into HTML body content.
@@ -116,7 +120,7 @@ function maskEmail(email: string): string {
   return `${local[0]}***@${domainHead[0] ?? '*'}***${tld}`;
 }
 
-const db = admin.firestore();
+const db = getFirestore();
 
 // Environment parameters
 const smtpHost = defineString('SMTP_HOST', { default: '' });
@@ -250,15 +254,15 @@ export const onMemberWritten = onDocumentWritten(
       await userRef.set(
         {
           familyIds: isMember
-            ? admin.firestore.FieldValue.arrayUnion(familyId)
-            : admin.firestore.FieldValue.arrayRemove(familyId),
+            ? FieldValue.arrayUnion(familyId)
+            : FieldValue.arrayRemove(familyId),
         },
         { merge: true },
       );
 
       const familyIds: string[] = (await userRef.get()).data()?.familyIds ?? [];
-      const userRecord = await admin.auth().getUser(uid);
-      await admin.auth().setCustomUserClaims(uid, {
+      const userRecord = await getAuth().getUser(uid);
+      await getAuth().setCustomUserClaims(uid, {
         ...userRecord.customClaims,
         familyIds,
       });
@@ -267,7 +271,7 @@ export const onMemberWritten = onDocumentWritten(
       // re-mint a token that still carries the family. Existing ID tokens stay
       // valid until they expire (≤1h) — the inherent Firebase revocation window.
       if (!isMember) {
-        await admin.auth().revokeRefreshTokens(uid);
+        await getAuth().revokeRefreshTokens(uid);
       }
       logger.info(
         `[Claims] ${uid} ${isMember ? 'added to' : 'removed from'} ${familyId}; ` +
@@ -356,9 +360,9 @@ export const updateMemberEmail = onCall(
   await verifyFamilyAdmin(request, familyId);
   await verifyMemberOfFamily(familyId, targetUid);
   await verifyTargetOnlyInFamily(familyId, targetUid);
-  const previousEmail = (await admin.auth().getUser(targetUid)).email;
+  const previousEmail = (await getAuth().getUser(targetUid)).email;
   const normalized = newEmail.toLowerCase();
-  await admin.auth().updateUser(targetUid, { email: normalized });
+  await getAuth().updateUser(targetUid, { email: normalized });
   await db.collection('families').doc(familyId).collection('members').doc(targetUid)
     .update({ email: normalized });
   await db.collection('users').doc(targetUid).update({ email: normalized });
@@ -413,7 +417,7 @@ export const resetMemberPassword = onCall(async (request: CallableRequest) => {
   await verifyFamilyAdmin(request, familyId);
   await verifyMemberOfFamily(familyId, targetUid);
   await verifyTargetOnlyInFamily(familyId, targetUid);
-  const userRecord = await admin.auth().getUser(targetUid);
+  const userRecord = await getAuth().getUser(targetUid);
   if (!userRecord.email) {
     throw new HttpsError('not-found', 'User has no email address.');
   }
@@ -430,7 +434,7 @@ export const resetMemberPassword = onCall(async (request: CallableRequest) => {
     );
   }
 
-  const resetLink = await admin.auth().generatePasswordResetLink(userRecord.email);
+  const resetLink = await getAuth().generatePasswordResetLink(userRecord.email);
   try {
     await transporter.sendMail({
       from: `"LegacyBot" <${smtpUser.value()}>`,
@@ -537,7 +541,7 @@ export const redeemInvitationCode = onCall(async (request: CallableRequest) => {
 
     const familyRef = db.collection('families').doc();
     familyId = familyRef.id;
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
 
     tx.set(familyRef, {
       name: familyName.trim(),
@@ -559,7 +563,7 @@ export const redeemInvitationCode = onCall(async (request: CallableRequest) => {
     // authoritative writer of that field, so it's not written here.
 
     tx.update(codeRef, {
-      redemptionCount: admin.firestore.FieldValue.increment(1),
+      redemptionCount: FieldValue.increment(1),
     });
 
     tx.set(redemptionRef, {
@@ -627,7 +631,7 @@ export const generateInvitationCode = onCall(async (request: CallableRequest) =>
     const existing = await codeRef.get();
     if (existing.exists) continue;
 
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     await codeRef.set({
       createdBy: uid,
       createdAt: now,
@@ -661,7 +665,7 @@ export const deactivateInvitationCode = onCall(async (request: CallableRequest) 
   }
   await codeRef.update({
     active: false,
-    deactivatedAt: admin.firestore.Timestamp.now(),
+    deactivatedAt: Timestamp.now(),
     deactivatedBy: uid,
   });
   logger.info(`[InvitationCode] Superadmin ${uid} deactivated code "${normalized}".`);
@@ -686,8 +690,8 @@ export const reactivateInvitationCode = onCall(async (request: CallableRequest) 
   }
   await codeRef.update({
     active: true,
-    deactivatedAt: admin.firestore.FieldValue.delete(),
-    deactivatedBy: admin.firestore.FieldValue.delete(),
+    deactivatedAt: FieldValue.delete(),
+    deactivatedBy: FieldValue.delete(),
   });
   logger.info(`[InvitationCode] Superadmin ${uid} reactivated code "${normalized}".`);
   return { code: normalized, active: true };
@@ -708,14 +712,14 @@ export const onUserProfileWritten = onDocumentWritten(
     if (!after?.exists) return; // profile deleted — nothing to sync
     const isSuperadmin = after.data()?.isSuperadmin === true;
     try {
-      const userRecord = await admin.auth().getUser(uid);
+      const userRecord = await getAuth().getUser(uid);
       const existing = userRecord.customClaims ?? {};
       // Coerce a missing claim to false so this no-ops for ordinary users.
       // Without it, the first profile write for a new user (including the
       // familyIds write from onMemberWritten) would spuriously re-set claims
       // and could race with onMemberWritten's own claim update.
       if ((existing.isSuperadmin ?? false) === isSuperadmin) return;
-      await admin.auth().setCustomUserClaims(uid, { ...existing, isSuperadmin });
+      await getAuth().setCustomUserClaims(uid, { ...existing, isSuperadmin });
       logger.info(`[Claims] Set isSuperadmin=${isSuperadmin} for ${uid}`);
     } catch (err) {
       logger.error(`[Claims] Failed to sync isSuperadmin for ${uid}:`, err);
@@ -998,7 +1002,7 @@ export const onSessionCompleted = onDocumentUpdated(
           logger.info(`[Refine] Starting refinement for session ${sessionId} (${entries.length} entries)`);
           const refine = buildRefineTranscriptHandler({ apiKey });
           const refined = await refine(audioPath);
-          const now = admin.firestore.Timestamp.now();
+          const now = Timestamp.now();
           const { entries: newEntries, replacedCount } = alignRefinedToEntries(entries, refined, now);
 
           if (replacedCount > 0) {
@@ -1234,7 +1238,7 @@ async function sendDigestForDossier(
 
   let storytellerEmail: string | undefined;
   try {
-    const userRecord = await admin.auth().getUser(storytellerUid);
+    const userRecord = await getAuth().getUser(storytellerUid);
     storytellerEmail = userRecord.email;
   } catch {
     // user deleted or no email
@@ -1300,7 +1304,7 @@ async function sendDigestForDossier(
   await db
     .collection('families').doc(familyId)
     .collection('dossiers').doc(dossierId)
-    .update({ lastDigestSentAt: admin.firestore.Timestamp.now() });
+    .update({ lastDigestSentAt: Timestamp.now() });
 
   logger.info(
     `[Digest] Sent to ${maskEmail(storytellerEmail)} for dossier ${dossierId}` +
@@ -1443,7 +1447,7 @@ export const generateMemoir = onCall(
       throw new HttpsError('failed-precondition', 'This dossier is scheduled for deletion; restore it first.');
     }
 
-    const now = admin.firestore.Timestamp.now();
+    const now = Timestamp.now();
     const memoirRef = await db
       .collection('families').doc(familyId)
       .collection('dossiers').doc(dossierId)
@@ -1463,7 +1467,7 @@ export const generateMemoir = onCall(
     } catch (err) {
       await memoirRef.update({
         status: 'error' as any,
-        updatedAt: admin.firestore.Timestamp.now(),
+        updatedAt: Timestamp.now(),
       });
       logger.error(`[Memoir] Generation failed for dossier ${dossierId}:`, err);
       throw new HttpsError('internal', 'Memoir generation failed. Please try again.');
@@ -1799,7 +1803,7 @@ export const getMediaUrl = onCall(
     await enforceRateLimit(request.auth!.uid, 'getMediaUrl');
 
     try {
-      const [url] = await admin.storage().bucket().file(objectPath).getSignedUrl({
+      const [url] = await getStorage().bucket().file(objectPath).getSignedUrl({
         version: 'v4',
         action: 'read',
         expires: Date.now() + 2 * 60 * 60 * 1000, // 2 hours
@@ -1851,11 +1855,11 @@ export const searchContext = onCall(
     }
 
     // 2. Vector search
-    let vectorHits: admin.firestore.QueryDocumentSnapshot[] = [];
+    let vectorHits: QueryDocumentSnapshot[] = [];
     try {
       const vectorSnap = await chunksRef.findNearest({
         vectorField: 'embedding',
-        queryVector: admin.firestore.FieldValue.vector(queryVector),
+        queryVector: FieldValue.vector(queryVector),
         limit: fetchCount,
         distanceMeasure: 'COSINE',
       }).get();
@@ -1906,7 +1910,7 @@ export const searchContext = onCall(
     const allDocIds = new Set([...vectorRankMap.keys(), ...keywordRankMap.keys()]);
 
     // Gather all docs we need to return text for (vector hits already loaded)
-    const docCache = new Map<string, admin.firestore.DocumentData>();
+    const docCache = new Map<string, DocumentData>();
     vectorHits.forEach((doc) => docCache.set(doc.id, doc.data()));
 
     // Fetch keyword-only hits we don't have yet
@@ -1924,7 +1928,7 @@ export const searchContext = onCall(
       const deletedSnap = await db
         .collection('families').doc(familyId)
         .collection('dossiers')
-        .where('purgeAfter', '>', admin.firestore.Timestamp.fromMillis(0))
+        .where('purgeAfter', '>', Timestamp.fromMillis(0))
         .select()
         .get();
       deletedSnap.docs.forEach((d) => deletedDossierIds.add(d.id));
@@ -2032,7 +2036,7 @@ export const exportDossier = onCall(
 
     try {
       const result = await exportDossierToStorage(
-        db, admin.storage().bucket(), familyId, dossierId, request.auth!.uid,
+        db, getStorage().bucket(), familyId, dossierId, request.auth!.uid,
       );
       if (!result) throw new HttpsError('not-found', 'Dossier not found.');
       return result;

@@ -53,12 +53,11 @@ const mockFirestore = {
   batch: vi.fn(() => mockBatch),
 };
 
-vi.mock('firebase-admin', () => ({
-  firestore: Object.assign(() => mockFirestore, {
-    Timestamp: {
-      now: () => ({ toMillis: () => Date.now() }),
-    },
-  }),
+vi.mock('firebase-admin/firestore', () => ({
+  getFirestore: () => mockFirestore,
+  Timestamp: {
+    now: () => ({ toMillis: () => Date.now() }),
+  },
 }));
 
 describe('analysis (gap analysis)', () => {

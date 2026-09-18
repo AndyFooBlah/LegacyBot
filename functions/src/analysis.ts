@@ -24,11 +24,11 @@
  * References: GitHub Issues #81, #82
  */
 
-import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
-// Lazy getter so we don't call admin.firestore() before initializeApp()
-const db = () => admin.firestore();
+// Lazy getter so we don't call getFirestore() before initializeApp()
+const db = () => getFirestore();
 
 // ---------------------------------------------------------------------------
 // Firestore helpers (Admin SDK versions of the client-side storage functions)
@@ -64,7 +64,7 @@ export interface GapAnalysisResult {
     implied: string[];    // e.g. ["brother Sam — mentioned twice, never explored"]
   };
   narrativeSummary: string; // 2–3 sentence plain-English summary for the digest email
-  analyzedAt: admin.firestore.Timestamp;
+  analyzedAt: Timestamp;
   sessionId: string;
 }
 
@@ -245,7 +245,7 @@ Respond with a single JSON object matching this exact structure:
       implied: Array.isArray(parsed.gaps?.implied) ? parsed.gaps.implied : [],
     },
     narrativeSummary: String(parsed.narrativeSummary ?? ''),
-    analyzedAt: admin.firestore.Timestamp.now(),
+    analyzedAt: Timestamp.now(),
     sessionId,
   };
 }
@@ -297,7 +297,7 @@ export async function saveGapAnalysis(
       source: 'gapAnalysis',
       priority: q.priority,
       rationale: q.rationale,
-      createdAt: admin.firestore.Timestamp.now(),
+      createdAt: Timestamp.now(),
     });
   });
 

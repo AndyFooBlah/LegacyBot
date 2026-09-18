@@ -26,10 +26,10 @@
  * Model: gemini-3.1-pro-preview with ThinkingLevel.HIGH (same as gap analysis).
  */
 
-import * as admin from 'firebase-admin';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
-const db = () => admin.firestore();
+const db = () => getFirestore();
 
 // ---------------------------------------------------------------------------
 // Data reading (Admin SDK)
@@ -333,7 +333,7 @@ export async function generateMemoirContent(
         citations: [],
         order: 0,
       }],
-      updatedAt: admin.firestore.Timestamp.now(),
+      updatedAt: Timestamp.now(),
     });
     return;
   }
@@ -366,6 +366,6 @@ export async function generateMemoirContent(
     title,
     status: 'draft',
     chapters,
-    updatedAt: admin.firestore.Timestamp.now(),
+    updatedAt: Timestamp.now(),
   });
 }
