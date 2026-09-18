@@ -42,7 +42,6 @@ import { enforceRateLimit } from './rateLimit';
 const ALLOWED_MODELS = new Set<string>([
   'gemini-3.1-pro-preview',
   'gemini-3-flash-preview',
-  'gemini-3.1-flash-preview',
   // Stable Flash-Lite, used by @andyfooblah/knowledge-common's Wikipedia
   // relevance filter (>= 1.3.1). gemini-3.1-flash-lite-preview was shut down
   // upstream (returns 404) and has been removed; re-verify IDs against
