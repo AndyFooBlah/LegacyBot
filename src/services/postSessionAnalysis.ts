@@ -287,7 +287,7 @@ export async function generateProfileSummary(
 
   try {
     const response = await invokeGemini({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3.8-flash',
       contents: `You maintain a SHORT running profile of a storyteller being interviewed for a biography. It is the interviewer's at-a-glance memory — full detail lives elsewhere and is looked up on demand.
 
 Write an updated profile in 4-6 sentences (max ~700 characters), prose only, no headings. Include: who they are, the key people/places/eras in their life, the main threads explored so far, and where the conversation is currently heading. Be factual and specific; no fluff.

@@ -32,6 +32,10 @@ import { fetchWithTimeout, TIMEOUTS } from './httpTimeouts';
 
 const CHUNK_CHARS = 1500;
 const OVERLAP_CHARS = 200;
+// Must match EMBEDDING_MODEL in embeddings.ts and the id hardcoded in
+// @andyfooblah/knowledge-common: cached chunk vectors are compared against
+// query vectors embedded by the client. Upgrading to gemini-embedding-2 breaks
+// that comparison and requires re-embedding the whole cache — see #181.
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const MAX_ARTICLE_CHARS = 500_000;
 

@@ -60,6 +60,15 @@ export interface ContextChunk {
 // gemini-embedding-001 is the stable embedding model available via this API key.
 // It natively produces 3072 dims; we truncate to 768 via outputDimensionality
 // to stay within Firestore's 2048-dim limit and keep the vector index unchanged.
+//
+// DO NOT swap this for gemini-embedding-2 as a one-line change. The two models
+// produce incompatible embedding spaces — vectors from one cannot be compared
+// against vectors from the other — so changing it silently degrades every
+// similarity search until all stored vectors are regenerated. A switch means a
+// backfill of families/{familyId}/contextChunks (and wikipedia_cache/, see
+// cacheWikipedia.ts), plus a coordinated @andyfooblah/knowledge-common release,
+// since that package hardcodes the id client-side. Shutdown is 2028-05-14.
+// https://ai.google.dev/gemini-api/docs/embeddings — see #181.
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const MIN_CHUNK_LENGTH = 20;
 

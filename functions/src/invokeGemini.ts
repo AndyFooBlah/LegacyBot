@@ -41,12 +41,19 @@ import { enforceRateLimit } from './rateLimit';
  */
 const ALLOWED_MODELS = new Set<string>([
   'gemini-3.1-pro-preview',
-  'gemini-3-flash-preview',
+  // Stable Flash. Replaced gemini-3-flash-preview (the deprecations page names
+  // gemini-3.6-flash as its replacement); 3.8 is the newest Flash stable at the
+  // same price, so the preview no longer earns its place. Verified 2026-09-18.
+  'gemini-3.8-flash',
   // Stable Flash-Lite, used by @andyfooblah/knowledge-common's Wikipedia
   // relevance filter (>= 1.3.1). gemini-3.1-flash-lite-preview was shut down
   // upstream (returns 404) and has been removed; re-verify IDs against
   // https://ai.google.dev/gemini-api/docs/models before adding any model here.
   'gemini-3.5-flash-lite',
+  // NOT upgraded to gemini-embedding-2: the two embedding spaces are
+  // incompatible, so switching invalidates every stored vector in
+  // families/{familyId}/contextChunks and wikipedia_cache/. knowledge-common
+  // also hardcodes this id client-side. Shutdown is 2028-05-14 — see #181.
   'gemini-embedding-001',
 ]);
 
