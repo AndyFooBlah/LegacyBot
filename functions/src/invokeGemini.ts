@@ -40,8 +40,8 @@ import { enforceRateLimit } from './rateLimit';
  * features actually need.
  */
 const ALLOWED_MODELS = new Set<string>([
-  'gemini-3.1-pro-preview',
-  // Stable Flash. Replaced gemini-3-flash-preview (the deprecations page names
+  // Stable Flash — the single reasoning/batch model (see src/models.ts).
+  // Replaced gemini-3.1-pro-preview on 2026-09-19 and gemini-3-flash-preview (the deprecations page names
   // gemini-3.6-flash as its replacement); 3.8 is the newest Flash stable at the
   // same price, so the preview no longer earns its place. Verified 2026-09-18.
   'gemini-3.8-flash',

@@ -23,11 +23,12 @@
  *   Pass 1 — Generate chapter outline from all available material.
  *   Pass 2 — Generate full prose for each chapter with inline citations.
  *
- * Model: gemini-3.1-pro-preview with ThinkingLevel.HIGH (same as gap analysis).
+ * Model: REASONING_MODEL (gemini-3.8-flash) with ThinkingLevel.HIGH.
  */
 
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { REASONING_MODEL } from './models';
 
 const db = () => getFirestore();
 
@@ -160,7 +161,7 @@ async function generateOutline(
     .join('\n');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
     contents: `You are an expert biographer creating a memoir outline for ${dossier.storytellerName}.
 
@@ -223,7 +224,7 @@ async function generateChapter(
     .join('\n');
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
     contents: `You are writing a chapter of a third-person biography about ${dossier.storytellerName}.
 

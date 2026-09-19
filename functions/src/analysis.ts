@@ -26,6 +26,7 @@
 
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { REASONING_MODEL } from './models';
 
 // Lazy getter so we don't call getFirestore() before initializeApp()
 const db = () => getFirestore();
@@ -220,7 +221,7 @@ Respond with a single JSON object matching this exact structure:
 }`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     contents: prompt,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
   });

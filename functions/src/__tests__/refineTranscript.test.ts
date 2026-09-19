@@ -67,7 +67,7 @@ describe('buildRefineTranscriptHandler', () => {
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     // fileData part references the uploaded uri
     const call = mockGenerateContent.mock.calls[0][0];
-    expect(call.model).toBe('gemini-3.1-pro-preview');
+    expect(call.model).toBe('gemini-3.8-flash');
     expect(call.contents[0].parts[0].fileData.fileUri).toBe('gs://x/abc');
     expect(call.config.responseMimeType).toBe('application/json');
     // returns normalized, sorted utterances

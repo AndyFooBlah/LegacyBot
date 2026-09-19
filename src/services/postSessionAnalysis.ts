@@ -36,6 +36,7 @@ import {
   Dossier,
 } from '../types';
 import { invokeGemini } from './geminiBroker';
+import { REASONING_MODEL } from './gemini';
 
 /** Format transcript entries into readable text for the LLM (no indices). */
 function formatTranscript(entries: TranscriptEntry[]): string {
@@ -67,7 +68,7 @@ export async function extractEvents(
     : '';
 
   const response = await invokeGemini({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
     contents: `You are an expert oral historian analyzing an interview transcript.
 Extract discrete life events mentioned in this conversation. Each event should be a specific moment, period, or experience — not a vague topic.
@@ -151,7 +152,7 @@ export async function assessEngagement(
     : '';
 
   const response = await invokeGemini({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
     contents: `You are an expert at analyzing interview dynamics. Assess the storyteller's engagement and emotional comfort in this interview transcript.
 
@@ -216,7 +217,7 @@ export async function suggestQuestions(
   const transcript = formatTranscript(entries);
 
   const response = await invokeGemini({
-    model: 'gemini-3.1-pro-preview',
+    model: REASONING_MODEL,
     config: { thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } },
     contents: `You are an expert oral historian helping plan the next interview session. Based on this transcript, suggest 3-5 new questions for the Story Queue.
 
@@ -287,7 +288,7 @@ export async function generateProfileSummary(
 
   try {
     const response = await invokeGemini({
-      model: 'gemini-3.8-flash',
+      model: REASONING_MODEL,
       contents: `You maintain a SHORT running profile of a storyteller being interviewed for a biography. It is the interviewer's at-a-glance memory — full detail lives elsewhere and is looked up on demand.
 
 Write an updated profile in 4-6 sentences (max ~700 characters), prose only, no headings. Include: who they are, the key people/places/eras in their life, the main threads explored so far, and where the conversation is currently heading. Be factual and specific; no fluff.

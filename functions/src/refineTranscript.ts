@@ -31,10 +31,11 @@ import { getStorage } from 'firebase-admin/storage';
 import * as logger from 'firebase-functions/logger';
 import { GoogleGenAI, Type } from '@google/genai';
 import type { RefinedUtterance } from './transcriptAlignment';
+import { REASONING_MODEL } from './models';
 
 /** Gemini model used for offline refinement — matches the app's other Pro-tier
  *  server calls (analysis.ts, memoir.ts). */
-export const REFINEMENT_MODEL = 'gemini-3.1-pro-preview';
+export const REFINEMENT_MODEL = REASONING_MODEL;
 
 /** Poll settings while the uploaded audio file transitions PROCESSING → ACTIVE. */
 const FILE_POLL_INTERVAL_MS = 2000;

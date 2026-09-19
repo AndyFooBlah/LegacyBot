@@ -49,6 +49,25 @@ export const LIVE_MODEL = 'gemini-3.8-live';
 /** VoiceCommon `thinkingLevel` value matching {@link LIVE_MODEL}. */
 export const LIVE_THINKING_LEVEL = 'none' as const;
 
+/**
+ * Model for offline reasoning work: event extraction, engagement assessment,
+ * question suggestion, gap analysis, memoir generation, transcript refinement.
+ *
+ * Replaced `gemini-3.1-pro-preview` on 2026-09-19. 3.8 Flash is seven months
+ * newer (rel. 2026-09-02 vs 2026-02-19), has the same 1,048,576-token input
+ * limit and 65,536-token output limit, accepts the same `thinkingLevel: HIGH`,
+ * and costs $0.75/1M in + $3.75/1M out against Pro's $2.00 + $12.00.
+ *
+ * Wind Spirit's 102-case model study found the Pro reference scored the same
+ * as 3.8 Flash on both rule checks and the LLM judge at three times the cost
+ * and latency, and Pro was *worse* at resisting false input (obeying bad
+ * advice 6/10 vs Flash's 2/10). Measured here: identical audio-refinement
+ * transcripts at roughly a third of Pro's latency.
+ *
+ * NOTE: Flash input/output prices double on 2027-01-01 ($1.50 / $7.50).
+ */
+export const REASONING_MODEL = 'gemini-3.8-flash';
+
 import { Dossier, InterviewQuestion, FamilyMember, PersonalityMode, PromptPhoto } from '../types';
 import { TalkContext } from './storage';
 
