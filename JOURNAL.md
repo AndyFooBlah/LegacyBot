@@ -156,3 +156,4 @@ Append-only project journal (per the global policy in `~/.claude/CLAUDE.md`).
   `/docs/transcribe`. Separately, `gemini-4-argon` now leads the models page as the flagship stable
   but is absent from the deprecations page entirely, so it carries no documented release or shutdown
   date.
+- 2026-11-08T17:31Z [step] Turned on Dependabot alerts and security updates, and added a standard `.github/dependabot.yml`: weekly grouped minor/patch updates with a 5-day cooldown (14 days for majors), which will need owner review before merge; security updates open immediately. Part of the cross-repo dependency security program (AndyFooBlah/andy-private-docs#57).
