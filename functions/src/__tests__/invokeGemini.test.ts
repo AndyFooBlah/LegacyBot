@@ -13,10 +13,12 @@
 // limitations under the License.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildInvokeGeminiHandler } from '../invokeGemini';
+import { buildInvokeGeminiHandler, ALLOWED_CONFIG_KEYS } from '../invokeGemini';
 import { HttpsError } from 'firebase-functions/v2/https';
 
 const mockGenerateContent = vi.fn();
+/** The `config` the handler handed to the SDK on its most recent call. */
+const lastConfig = () => mockGenerateContent.mock.calls[mockGenerateContent.mock.calls.length - 1][0].config;
 vi.mock('@google/genai', () => ({
   GoogleGenAI: vi.fn().mockImplementation(function() {
     return {
@@ -89,6 +91,60 @@ describe('invokeGemini', () => {
     expect(mockGenerateContent).toHaveBeenCalledWith(expect.objectContaining({
       model: 'gemini-3.8-flash',
     }));
+  });
+
+  it('drops httpOptions so a caller cannot redirect the request (and the API key) to their own host', async () => {
+    const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
+    mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });
+    await handler({
+      auth: { uid: 'u1' },
+      data: {
+        model: 'gemini-3.8-flash',
+        contents: 'hi',
+        config: {
+          temperature: 0.2,
+          httpOptions: { baseUrl: 'https://attacker.example', headers: { 'x-evil': '1' } },
+        },
+      },
+    } as never);
+    const passed = lastConfig();
+    expect(passed.httpOptions).toBeUndefined();
+    expect(JSON.stringify(passed)).not.toContain('attacker.example');
+    expect(passed.temperature).toBe(0.2);
+  });
+
+  it('passes only allow-listed config keys', async () => {
+    const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
+    mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });
+    await handler({
+      auth: { uid: 'u1' },
+      data: {
+        model: 'gemini-3.8-flash',
+        contents: 'hi',
+        config: {
+          thinkingConfig: { thinkingLevel: 'HIGH' },
+          responseMimeType: 'application/json',
+          systemInstruction: 'be brief',
+          tools: [{ googleSearch: {} }],
+          abortSignal: {},
+          cachedContent: 'cachedContents/x',
+          candidateCount: 8,
+          somethingNew: true,
+        },
+      },
+    } as never);
+    const passed = lastConfig();
+    for (const key of Object.keys(passed)) expect(ALLOWED_CONFIG_KEYS).toContain(key);
+    expect(passed.tools).toBeUndefined();
+    expect(passed.candidateCount).toBe(1);
+    expect(passed.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+  });
+
+  it('ignores a config that is not a plain object', async () => {
+    const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
+    mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });
+    await handler({ auth: { uid: 'u1' }, data: { model: 'gemini-3.8-flash', contents: 'hi', config: ['httpOptions'] } } as never);
+    expect(lastConfig()).toEqual({});
   });
 
   it('caps maxOutputTokens if it exceeds the ceiling', async () => {

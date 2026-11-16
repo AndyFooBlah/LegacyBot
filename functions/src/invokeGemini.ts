@@ -57,6 +57,27 @@ const ALLOWED_MODELS = new Set<string>([
   'gemini-embedding-001',
 ]);
 
+/**
+ * The only `config` keys a client may set. Everything else is dropped,
+ * silently, before the SDK sees it. Add a key here only after checking it
+ * cannot change where the request goes, what credentials it carries, or what
+ * the server fetches on the caller's behalf.
+ */
+export const ALLOWED_CONFIG_KEYS = [
+  'thinkingConfig',
+  'temperature',
+  'topP',
+  'topK',
+  'seed',
+  'candidateCount',
+  'maxOutputTokens',
+  'stopSequences',
+  'responseMimeType',
+  'responseSchema',
+  'responseJsonSchema',
+  'systemInstruction',
+] as const;
+
 /** Cap output tokens to bound the worst-case cost of a single call. */
 const MAX_OUTPUT_TOKENS_CEILING = 32_768;
 
@@ -121,7 +142,25 @@ export function buildInvokeGeminiHandler(deps: {
       );
     }
 
-    const safeConfig = { ...(config ?? {}) } as Record<string, unknown>;
+    // SECURITY: copy ONLY allow-listed generation settings. Never spread the
+    // client's config object. `config.httpOptions.baseUrl` is honoured per
+    // request by @google/genai, and the SDK still attaches
+    // `x-goog-api-key: <GEMINI_API_KEY>` to whatever host it names — so a
+    // caller who could set it would be handed the production key. Reproduced
+    // locally on 2026-11-15 with a dummy key and a loopback server. `tools` is
+    // excluded too: no client needs server-side tools, and they open URL
+    // fetching and extra spend.
+    const safeConfig: Record<string, unknown> = {};
+    if (config && typeof config === 'object' && !Array.isArray(config)) {
+      for (const key of ALLOWED_CONFIG_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(config, key)) {
+          safeConfig[key] = (config as Record<string, unknown>)[key];
+        }
+      }
+    }
+    if (typeof safeConfig.candidateCount === 'number' && safeConfig.candidateCount > 1) {
+      safeConfig.candidateCount = 1;
+    }
     if (
       typeof safeConfig.maxOutputTokens === 'number' &&
       safeConfig.maxOutputTokens > MAX_OUTPUT_TOKENS_CEILING
