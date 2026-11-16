@@ -10,8 +10,8 @@ LegacyBot (publicly: BiographyBot) is a React SPA using the Google Gemini Live A
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS v4, Vite 6, React Router v7 — deployed to Firebase Hosting at **https://biographybot.com**
 - **AI Core**: `@google/genai`. All models are Gemini 3.1 or newer — no earlier models are used anywhere.
-  - Live session: `gemini-3.1-flash-live-preview` (`thinkingLevel: MINIMAL` for lowest latency)
-  - Batch analysis (post-session, gap analysis, memoir): `gemini-3.1-pro-preview` (`thinkingLevel: HIGH`)
+  - Live session: the `LIVE_MODEL` constant in `src/services/gemini.ts` (the stable Gemini Live model since 2026-09-19). It is the only place a Live model id is written; `thinkingLevel: 'auto'` lets VoiceCommon's model registry send the thinking config that model accepts (none for the current one). See [TESTING.md](TESTING.md) for the guard and the live conformance suite.
+  - Batch analysis (post-session, gap analysis, memoir): the `REASONING_MODEL` constant (`thinkingLevel: HIGH`), mirrored in `functions/src/models.ts`
 - **Auth**: Firebase Authentication (Google and Email/Password sign-in)
 - **Persistence**:
   - **Firestore**: Families, dossiers, session metadata, transcripts, questions, events, memoirs, media, invitations
@@ -272,7 +272,7 @@ LLM-assisted helpers for computing and formatting intervals involving vague or n
 
 The system instruction is kept deliberately small to reduce latency and avoid a native-audio failure mode where large prompts trigger greeting restarts/repeats (google-gemini/cookbook#1197). It carries the storyteller's name, a **short rolling profile summary** (regenerated after each session by `generateProfileSummary` and stored on the dossier — not the full biography), the **Story Queue** (topics + status, without accumulated findings), the family tree, and the personality. Prior detail is fetched **on demand** rather than inlined: `searchContext` (biography, prior transcripts, events, facts), `getBiography` (full background), and `getQuestionFindings` (accumulated learnings for one question). In-session text messages use `sendRealtimeInput({ text })`. `serverContent` messages may contain multiple parts; the audio playback loop iterates all parts.
 
-Turn-taking is selected by the `TURN_MODE` constant in `useUnifiedSession`: `auto` uses Gemini's server VAD with LOW end-of-speech sensitivity; `manual` uses VoiceCommon's client-side voice-activity detection, which holds the turn until a configurable silence has elapsed (see the VoiceCommon design doc).
+Turn-taking is selected by the `TURN_MODE` constant in `src/services/liveSession.ts` (which also holds the session's voice, patience and tool declarations, shared by the hook and the tests): `auto` uses Gemini's server VAD with LOW end-of-speech sensitivity; `manual` uses VoiceCommon's client-side voice-activity detection, which holds the turn until a configurable silence has elapsed (see the VoiceCommon design doc).
 
 **Personality modes:**
 - `empathetic`: warm, attentive biographer — brief responses, one question at a time, gentle encouragement
@@ -343,7 +343,9 @@ Runs in `useSession.ts` as a background async block after `stopSession`. Uses th
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` — email server config
 - `APP_URL` — base URL for invite links and email links
 
-### 3.7 Talk About My Family (Conversational Mode)
+### 3.7 Talk About My Family (Conversational Mode) — REMOVED
+
+> **Status (2026-11-15, #213):** this mode no longer exists. The unified session (#103) took over its job: one recorded session that moves between interviewing and casual conversation. The `/talk` route has redirected to the session view since then, nothing rendered `TalkView`, and the unreachable code (`TalkView`, `useTalkSession`, `buildTalkSystemInstruction`, `getTalkContext`, and the private audio helpers only it used) was deleted. It was a second, direct Gemini Live connection with its own configuration and no turn-taking settings, which is exactly what a model change can break unnoticed. `recordFact` and `MiscFact` live on in the unified session. The description below is kept as history.
 
 A second conversational mode alongside the structured interview. The storyteller can have an unrecorded, free-form voice conversation with the AI about their family.
 
@@ -439,15 +441,15 @@ src/
 │   ├── useAuth.ts
 │   ├── useFamily.ts
 │   ├── useDossier.ts
-│   ├── useSession.ts               # Live session lifecycle (~600 lines)
-│   ├── useAudioMixer.ts
+│   ├── useUnifiedSession.ts        # Wraps VoiceCommon's useSession (which owns the Live lifecycle and the recorder)
 │   ├── useEvents.ts
 │   └── useInvitations.ts
 ├── services/
 │   ├── firebase.ts
-│   ├── gemini.ts                   # System instructions + Gemini Live session
+│   ├── gemini.ts                   # Model constants (LIVE_MODEL, REASONING_MODEL) + system instructions
+│   ├── liveSession.ts              # The session's Live options and tool declarations (pure; shared with tests)
+│   ├── liveProbe.ts                # Diagnostics page's Live reachability probe
 │   ├── storage.ts                  # Cloud Storage + Firestore CRUD
-│   ├── audioUtils.ts
 │   ├── invitations.ts
 │   ├── adminActions.ts
 │   ├── postSessionAnalysis.ts      # Tier 1 client-side analysis
@@ -555,15 +557,18 @@ Source: `functions/src/liveToken.ts`, `functions/src/invokeGemini.ts`. Rate-limi
 - **Browser API mocks**: `src/__mocks__/webAudioApi.ts`
 - **Firebase mocks**: `src/__mocks__/firebase.ts`
 - **Linting**: ESLint flat config (`eslint.config.js`) with `@typescript-eslint` and `eslint-plugin-react-hooks`
-- **Current test count**: 334 passing
+- **Current test count**: 426 app tests and 54 function tests, offline. A separate live suite (`npm run test:live`) checks the production Live configuration against the real API; see [TESTING.md](TESTING.md).
 
 ### 5.2 Test Coverage
 
 ```
 src/__tests__/
-├── services/   audioUtils, gemini, storage, postSessionAnalysis
+├── services/   gemini, liveSession, liveProbe, liveTokenContract, storage,
+│               postSessionAnalysis
 ├── hooks/      useAuth, useDossier, useFamily, useEvents, useInvitations,
-│               useSession, useAudioMixer
+│               useUnifiedSession (Live config, endSession, question status)
+├── live/       *.live.test.ts: the live conformance suite (not part of npm test)
+├── liveModelGuard.test.ts
 └── components/ AcceptInvite, LoginScreen, DossierList, FamilySelector,
                 MemberManagement, QuestionDashboard, SessionView,
                 TranscriptFeed, ErrorBoundary, StorytellerDashboard

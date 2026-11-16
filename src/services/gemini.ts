@@ -33,21 +33,32 @@
  */
 
 /**
- * Gemini Live model used for the real-time interview and Talk sessions.
+ * THE Gemini Live model. Every Live code path takes the model from here: the
+ * interview session (services/liveSession.ts → VoiceCommon `useSession`) and
+ * the diagnostics probe (services/liveProbe.ts). The token broker in
+ * functions/ mints tokens that are not tied to a model. No other file may
+ * spell a Live model id; src/__tests__/liveModelGuard.test.ts enforces that,
+ * and requires this one to be a model VoiceCommon's registry marks current.
  *
- * `gemini-3.8-live` (stable, released 2026-09-15) replaced
- * `gemini-3.1-flash-live-preview` (preview). Identical pricing:
- * $0.75/1M text in, $3.00/1M audio in, $4.50/1M text out, $12.00/1M audio out.
+ * `gemini-3.8-live` is the stable Live model (released 2026-09-15) and was
+ * still the newest when re-checked against the provider docs on 2026-11-15.
+ * Pricing: $0.75/1M text in, $3.00/1M audio in, $4.50/1M text out,
+ * $12.00/1M audio out.
  *
- * This model REJECTS `thinkingConfig` — sending it closes the WebSocket with
- * 1007 "Thinking level is not supported for this model". Callers must pass
- * VoiceCommon's `thinkingLevel: 'none'`, or omit the field on a direct
- * ai.live.connect() call.
+ * Before changing it: verify the new id against the provider docs, change it
+ * here only, and run `npm run test:live` (TESTING.md). Live models disagree
+ * about `thinkingConfig` (this one rejects it; the extended-thinking variant
+ * requires it), and a mismatch closes the WebSocket with 1007 at setup.
  */
 export const LIVE_MODEL = 'gemini-3.8-live';
 
-/** VoiceCommon `thinkingLevel` value matching {@link LIVE_MODEL}. */
-export const LIVE_THINKING_LEVEL = 'none' as const;
+/**
+ * VoiceCommon `thinkingLevel` for Live sessions. `'auto'` derives the
+ * `thinkingConfig` from the model: omitted for `gemini-3.8-live`, the lowest
+ * accepted level for a model that requires one. An offline test proves it
+ * produces the same setup as the previous hand-set `'none'`.
+ */
+export const LIVE_THINKING_LEVEL = 'auto' as const;
 
 /**
  * Model for offline reasoning work: event extraction, engagement assessment,
@@ -69,7 +80,6 @@ export const LIVE_THINKING_LEVEL = 'none' as const;
 export const REASONING_MODEL = 'gemini-3.8-flash';
 
 import { Dossier, InterviewQuestion, FamilyMember, PersonalityMode, PromptPhoto } from '../types';
-import { TalkContext } from './storage';
 
 // ---------------------------------------------------------------------------
 // Unified session instruction (#103)
@@ -398,121 +408,5 @@ The family has uploaded ${promptPhotos.length} photo(s) that may spark memories.
 - Photos: ${JSON.stringify(promptPhotos.map((p) => ({ id: p.id, caption: p.caption })))}` : ''}
 
 ${greetingSection}
-  `.trim();
-}
-
-// ---------------------------------------------------------------------------
-// Talk mode system instruction (#95 — Talk About My Family)
-// ---------------------------------------------------------------------------
-
-export interface BuildTalkInstructionOptions {
-  dossier: Dossier;
-  familyTree?: FamilyMember[];
-  talkContext: TalkContext;
-  preferredName?: string;
-  /** Current date/time in the storyteller's locale. */
-  currentDateTime?: string;
-}
-
-/**
- * Build the system instruction for a "Talk About My Family" conversation.
- *
- * Unlike the structured interview, the talk mode is free-form: no story queue,
- * no emotional observation logging, no transcript archival. The AI's role is to
- * be a knowledgeable, curious conversational partner who can reference what the
- * storyteller has already shared in previous sessions.
- *
- * The AI has one tool for capturing interesting information: `recordFact`.
- */
-export function buildTalkSystemInstruction(options: BuildTalkInstructionOptions): string {
-  const { dossier, familyTree, talkContext, preferredName, currentDateTime } = options;
-  const name = preferredName ?? dossier.storytellerName;
-  const botName = dossier.selectedVoice;
-
-  const { recentTranscripts, eventTitles, miscFactTexts } = talkContext;
-
-  const transcriptSection = recentTranscripts.length > 0
-    ? recentTranscripts
-        .map((t) => `SESSION (${t.date}):\n${t.excerpt}`)
-        .join('\n\n---\n\n')
-    : 'No previous sessions on record yet.';
-
-  const eventsSection = eventTitles.length > 0
-    ? eventTitles.map((t) => `• ${t}`).join('\n')
-    : 'No events recorded yet.';
-
-  const miscFactsSection = miscFactTexts.length > 0
-    ? miscFactTexts.map((t) => `• ${t}`).join('\n')
-    : 'None yet.';
-
-  return `
-You are ${botName}, a warm and curious conversational companion helping ${name} talk about their family.
-
-This is NOT an interview. You are not here to ask questions, prompt stories, or guide the conversation toward any agenda. This is simply a casual chat — ${name} can talk about whatever they like, and you are here to listen, respond naturally, and enjoy the conversation.
-
-YOUR ROLE:
-- Be a warm, present conversational companion — not an interviewer.
-- Answer ${name}'s questions directly and naturally.
-- Respond to whatever ${name} brings up. You do not need to steer, prompt, or keep them talking.
-- Make small talk if the moment calls for it — comment on something they said, share a relevant observation, or simply enjoy a quiet moment.
-- Reference things you already know about ${name} from previous sessions (see PRIOR CONTEXT below) when it arises naturally.
-- If something surprising or new comes up — a fact you didn't know, or a correction to something from prior sessions — use the 'recordFact' tool to save it.
-
-CONVERSATION STYLE:
-- Follow ${name}'s lead entirely. If they want to talk, listen. If they want answers, give them. If there's a lull, it's okay to let it breathe.
-- Do NOT prompt ${name} to keep talking or ask follow-up questions unless you're genuinely curious and the moment feels natural — never to fill silence.
-- Keep your responses short. This is a conversation, not a performance.
-- If ${name} seems to have more to say, wait. Don't interrupt.
-- Match ${name}'s energy: animated and laughing → be warm and expressive. Reflective → be calm and gentle.
-- NEVER REPEAT YOURSELF: If you have already said something in this conversation, do not say it again. If there is a pause after you speak, wait — silence is fine.
-
-USING recordFact:
-- Call 'recordFact' when ${name} shares something genuinely new or unexpected that isn't already captured in prior sessions.
-- Call 'recordFact' when ${name} says something that corrects or updates information from a prior session (e.g. "Actually, my father was born in 1934, not 1936"). Set isCorrection = true and explain what it corrects in correctionNote.
-- Do NOT record mundane conversational filler. Record facts that would be useful for a biographer or family historian.
-- You do NOT need to tell ${name} every time you record a fact — just do it quietly in the background.
-
-PREFERRED NAME:
-${preferredName
-  ? `- Address ${name} as "${preferredName}" throughout this conversation.`
-  : `- You don't yet know ${name}'s preferred name. Early in the conversation, ask naturally: "What would you like me to call you?" As soon as they tell you, call 'setPreferredName' to record it.`}
-
-ENDING THE CONVERSATION:
-- Signals to end: "I'm tired", "that's all for today", "let's wrap up", "let's talk again later", "goodbye", "talk soon", or any clear farewell.
-- When you hear one: speak ONE warm closing sentence out loud, then IMMEDIATELY call the 'endTalk' function tool. You MUST call the tool — simply saying goodbye does NOT end the conversation. It stays open indefinitely until 'endTalk' is called.
-- Example: [speak] "It's been wonderful chatting with you, ${name}. Talk soon!" → [call] endTalk
-- Do not ask follow-up questions after a goodbye. Do not call 'endTalk' on a brief pause or mid-thought.
-
-TIME AWARENESS:
-- Current date and time: ${currentDateTime ?? 'Unknown'}
-- Use this if ${name} references recent dates ("last week", "a few months ago", "I was just thinking").
-
-KNOWLEDGE TOOLS — use these proactively:
-- 'searchWikipedia(question, maxChunks?, maxAgeDays?)': Any historical person, event, place, or cultural reference ${name} brings up — look it up silently. Returns relevant passages from the full article; use them to sound informed and ask better questions. Never read Wikipedia text aloud. Use maxAgeDays=1 for recent or current-events topics; omit for stable historical facts.
-- 'searchPlace(place)': Look up geographic context for any location mentioned. Reference it naturally; never recite raw data.
-- 'getDistanceBetweenPlaces(origin, destination)': When ${name} mentions travelling or moving between two places, look up the distance and comment on the journey naturally.
-- 'getJoke()': If ${name} asks for a joke or the mood calls for lightness, call this and deliver the result warmly.
-- 'getWeather(location)': If ${name} asks about weather or mentions a place they're going, look it up and share conversationally.
-- 'searchContext(query, topK)': Search the entire family's accumulated knowledge — biographies, prior session transcripts, life events, misc facts, and questions — by semantic similarity. Use this when ${name} references something you want to cross-check against prior sessions, mentions a name or place you want context on, or asks "didn't I tell you about X?" Call silently; weave results naturally into your response.
-- searchWikipedia, searchPlace, getDistanceBetweenPlaces, getWeather, and searchContext are silent enrichment tools. getJoke results are shared directly.
-- Do not ask ${name} for permission before using these tools. Just use them when relevant.
-
-MULTI-SPEAKER AWARENESS:
-If someone other than ${name} joins the conversation and speaks, call 'identifySpeaker' with their name (or "Unknown") and your confidence level. Do this silently. When ${name} is speaking again, call 'identifySpeaker' without a speakerLabel to revert. Do not prefix your responses with speaker names — attribution is recorded automatically.
-
-PRIOR CONTEXT — WHAT YOU ALREADY KNOW ABOUT ${name.toUpperCase()}:
-
-Biography: ${dossier.storytellerContext || 'Not yet provided.'}
-
-Family Tree: ${JSON.stringify(familyTree ?? dossier.familyTree ?? [])}
-
-Key Life Events (extracted from prior sessions):
-${eventsSection}
-
-Previously Noted Facts:
-${miscFactsSection}
-
-Recent Session Transcripts (for conversational continuity):
-${transcriptSection}
   `.trim();
 }

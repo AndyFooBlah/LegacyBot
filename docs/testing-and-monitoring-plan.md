@@ -65,6 +65,11 @@ every audit.
 trigger, is exercised by none of them, and component tests mock the session library wholesale, so no
 unit test can see a broken live-session configuration.
 
+*Update 2026-11-15 (#213):* the second half of that hole is closed. The session's Live settings now come
+from one pure module, and offline tests pin the exact setup a session sends, guard the single model
+constant, and tie the token broker's mint request to the client (426 app tests, 54 function tests). See
+`TESTING.md`. The first half (the main functions file) is unchanged.
+
 ### T2. Access rules: on every push. **To do. Highest value item in this plan.**
 
 There are no tests of the Firestore or Storage rules. Build a role-by-path matrix on the emulator from
@@ -121,7 +126,15 @@ Then the subjective remainder (is the memoir prose good, are the suggested quest
 rubric judge calibrated once against the owner's own ratings of about twenty chapters. Design is in
 `evals/README.md`. This comes last because it is the least certain to pay.
 
-### T5. Live session canary: after every deploy and daily. **To do. Second-highest value.**
+### T5. Live session canary: after every deploy and daily. **Partly done. Second-highest value.**
+
+*Update 2026-11-15 (#213):* the headless half exists. `npm run test:live` opens real sessions with the
+production configuration for the fictional family (real instruction builder, tools, voice, turn-taking),
+mints a token the way the callable does, and checks setup, the single greeting, spoken turns, tool round
+trips, patience, barge-in, resumption and latency. `.github/workflows/live-contract.yml` runs it weekly
+once the owner adds a key. Still to do from the list below: signing in as a fixture storyteller and
+going through the deployed callable, the four content probes, and the session-end check on the stored
+document and recording. `TESTING.md` says exactly where the coverage stops.
 
 A headless driver that takes the same path the browser does: sign in as a fixture storyteller, mint a
 live token through the callable, open the live connection with the production configuration, and play

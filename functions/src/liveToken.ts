@@ -32,11 +32,7 @@ import { GoogleGenAI } from '@google/genai';
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { enforceRateLimit } from './rateLimit';
-
-/** How long the minted token is valid before Gemini rejects it. */
-const TOKEN_TTL_MS = 30 * 60 * 1000; // 30 minutes
-/** How long after minting the token may be used to open a new session. */
-const NEW_SESSION_WINDOW_MS = 60 * 1000; // 1 minute
+import { LIVE_TOKEN_API_VERSION, buildLiveTokenRequest } from './liveTokenConfig';
 
 export interface MintGeminiLiveTokenResponse {
   /** Ephemeral token string to pass as the `apiKey` field on the client Live connect. */
@@ -59,22 +55,16 @@ export function buildMintGeminiLiveTokenHandler(deps: {
       throw new HttpsError('internal', 'GEMINI_API_KEY is not configured on this server.');
     }
 
-    const now = Date.now();
-    const expireTime = new Date(now + TOKEN_TTL_MS).toISOString();
-    const newSessionExpireTime = new Date(now + NEW_SESSION_WINDOW_MS).toISOString();
+    // The request (single use, 30-minute expiry, 1-minute window to open the
+    // session, no model lock) and the API version live in liveTokenConfig.ts,
+    // where the client's tests and the live suite can read them too.
+    const tokenRequest = buildLiveTokenRequest(Date.now());
+    const expireTime = tokenRequest.config.expireTime;
 
-    // authTokens.create is exposed only on the v1alpha endpoint; the SDK
-    // defaults to v1, which returns 404 for this method. Pin v1alpha here.
-    // See https://ai.google.dev/gemini-api/docs/ephemeral-tokens
-    const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1alpha' } });
+    // authTokens.create is not served on the SDK's default v1 endpoint (404).
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion: LIVE_TOKEN_API_VERSION } });
     try {
-      const token = await ai.authTokens.create({
-        config: {
-          uses: 1,
-          expireTime,
-          newSessionExpireTime,
-        },
-      });
+      const token = await ai.authTokens.create(tokenRequest);
       if (!token?.name) {
         throw new Error('authTokens.create returned empty token');
       }

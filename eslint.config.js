@@ -84,6 +84,12 @@ export default [
     },
   },
   {
+    // The live suite (npm run test:live) runs in Node, never in a browser:
+    // it reads its key from process.env and opens real Gemini Live sessions.
+    files: ['src/__tests__/live/**/*.ts'],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
     ignores: ['dist/', 'node_modules/', 'functions/'],
   },
 ];

@@ -104,6 +104,8 @@ LegacyBot (publicly: BiographyBot) is a voice-first life story preservation appl
 
 ### 3.11 Talk About My Family
 
+> **Status:** superseded by the unified session, which moves between interviewing and casual conversation in one recorded session. The separate unrecorded mode described here is not in the product; its unreachable code was removed on 2026-11-15 (#213). Fact capture (`recordFact`, Miscellaneous Facts) remains, in the unified session.
+
 A low-stakes, unstructured conversational mode distinct from the formal interview.
 
 - **Storyteller experience**: Press a green "Talk About My Family" button on the dashboard. The AI greets them and invites open-ended conversation — no agenda, no question list.
@@ -142,7 +144,7 @@ A low-stakes, unstructured conversational mode distinct from the formal intervie
 
 ### 5.3 Performance
 
-- Live session latency must be acceptable for natural voice conversation (Gemini Flash model, `thinkingLevel: MINIMAL`).
+- Live session latency must be acceptable for natural voice conversation (the stable Gemini Live model; measured on 2026-11-15: first audio about 0.3 s after the dossier's configured wait elapses under server VAD, and about 0.9 to 1.5 s after the end of a turn under manual turn control).
 - Audio chunks are flushed every ~10 seconds to Cloud Storage so session data is never more than ~10s behind.
 - Firestore composite indexes are defined for all compound queries (status + time, status + order).
 

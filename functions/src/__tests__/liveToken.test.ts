@@ -13,7 +13,17 @@
 // limitations under the License.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { GoogleGenAI } from '@google/genai';
 import { buildMintGeminiLiveTokenHandler } from '../liveToken';
+import {
+  LIVE_TOKEN_API_VERSION,
+  LIVE_TOKEN_MODEL_CONSTRAINT,
+  NEW_SESSION_WINDOW_MS,
+  TOKEN_TTL_MS,
+  buildLiveTokenRequest,
+} from '../liveTokenConfig';
 import { HttpsError } from 'firebase-functions/v2/https';
 
 // Mock the GoogleGenAI SDK
@@ -63,6 +73,29 @@ describe('mintGeminiLiveToken', () => {
     });
   });
 
+  it('mints with exactly the request and API version in liveTokenConfig', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-15T12:00:00.000Z'));
+    try {
+      mockCreateToken.mockResolvedValue({ name: 'auth_tokens/abc' });
+      const result = await handler({ auth: { uid: 'user-123' } } as any);
+
+      const expected = buildLiveTokenRequest(Date.parse('2026-11-15T12:00:00.000Z'));
+      expect(mockCreateToken).toHaveBeenCalledTimes(1);
+      expect(mockCreateToken).toHaveBeenCalledWith(expected);
+      // The client is told the same expiry the provider was asked for.
+      expect(result).toEqual({ token: 'auth_tokens/abc', expireTime: expected.config.expireTime });
+      // The SDK client is built for the version the token must be minted on,
+      // with the server-side key and nothing else.
+      expect(vi.mocked(GoogleGenAI)).toHaveBeenCalledWith({
+        apiKey: 'test-api-key',
+        httpOptions: { apiVersion: LIVE_TOKEN_API_VERSION },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('throws internal if GEMINI_API_KEY is missing', async () => {
     const brokenHandler = buildMintGeminiLiveTokenHandler({ apiKey: () => '' });
     const request = { auth: { uid: 'user-123' } } as any;
@@ -78,5 +111,46 @@ describe('mintGeminiLiveToken', () => {
     await expect(handler(request)).rejects.toThrow(
       new HttpsError('internal', 'Failed to mint Gemini Live token.')
     );
+  });
+});
+
+describe('liveTokenConfig', () => {
+  const now = Date.parse('2026-11-15T12:00:00.000Z');
+
+  it('asks for a single-use token: 30-minute expiry, 1 minute to open the session', () => {
+    expect(TOKEN_TTL_MS).toBe(30 * 60 * 1000);
+    expect(NEW_SESSION_WINDOW_MS).toBe(60 * 1000);
+    expect(buildLiveTokenRequest(now)).toEqual({
+      config: {
+        uses: 1,
+        expireTime: '2026-11-15T12:30:00.000Z',
+        newSessionExpireTime: '2026-11-15T12:01:00.000Z',
+        ...(LIVE_TOKEN_MODEL_CONSTRAINT ? { liveConnectConstraints: { model: LIVE_TOKEN_MODEL_CONSTRAINT } } : {}),
+      },
+    });
+  });
+
+  it('mints on an API version that serves authTokens.create', () => {
+    // v1 (the SDK default) returns 404 for authTokens.create.
+    expect(['v1alpha', 'v1beta']).toContain(LIVE_TOKEN_API_VERSION);
+  });
+
+  it('a model lock, if one is ever added, matches the client model constant', () => {
+    // functions/ cannot import from src/, so read the client constant off disk
+    // (the same approach as models.test.ts).
+    const frontend = readFileSync(join(__dirname, '../../../src/services/gemini.ts'), 'utf8');
+    const match = frontend.match(/export const LIVE_MODEL = '([^']+)'/);
+    expect(match, 'LIVE_MODEL not found in src/services/gemini.ts').toBeTruthy();
+    if (LIVE_TOKEN_MODEL_CONSTRAINT !== null) {
+      expect(LIVE_TOKEN_MODEL_CONSTRAINT).toBe(match![1]);
+    }
+    const request = buildLiveTokenRequest(now);
+    expect(request.config.liveConnectConstraints?.model ?? null).toBe(LIVE_TOKEN_MODEL_CONSTRAINT);
+  });
+
+  it('imports nothing, so the client tests and the live suite can load it', () => {
+    const source = readFileSync(join(__dirname, '../liveTokenConfig.ts'), 'utf8');
+    expect(source).not.toMatch(/^\s*import\s/m);
+    expect(source).not.toMatch(/\brequire\(/);
   });
 });

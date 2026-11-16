@@ -23,7 +23,6 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { LIVE_MODEL } from '../../services/gemini';
 import { getDoc, doc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../hooks/useAuth';
@@ -34,6 +33,7 @@ import {
   getWeather,
 } from '../../services/externalSearch';
 import { mintGeminiLiveToken } from '../../services/geminiBroker';
+import { probeLiveSetup } from '../../services/liveProbe';
 import { searchWikipedia } from '@andyfooblah/knowledge-common';
 
 // ---------------------------------------------------------------------------
@@ -85,19 +85,12 @@ export const SystemDiagnostics: React.FC<SystemDiagnosticsProps> = ({ uid: uidPr
         probe('Weather', () => getWeather('New York, NY')),
         probe('Gemini Live', async () => {
           // Mint a single-use ephemeral token via the server-side broker, then
-          // use it to open a WebSocket to BidiGenerateContent and confirm the
-          // connection is accepted. This exercises the same auth path the
-          // real session uses (broker → ephemeral token → Live WS) so a green
-          // probe means production sessions are reachable.
+          // open the Live WebSocket with it, send a setup for LIVE_MODEL and
+          // wait for setupComplete. This is the path a real session takes
+          // (broker → ephemeral token → Live setup); a socket that merely
+          // opens proves nothing, because the server validates at setup.
           const { token } = await mintGeminiLiveToken();
-          const model = LIVE_MODEL;
-          const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${token}`;
-          await new Promise<void>((resolve, reject) => {
-            const ws = new WebSocket(url);
-            const timer = setTimeout(() => { ws.close(); reject(new Error('timeout')); }, 6000);
-            ws.onopen = () => { clearTimeout(timer); ws.close(); resolve(); };
-            ws.onerror = () => { clearTimeout(timer); reject(new Error(`${model} WebSocket failed`)); };
-          });
+          await probeLiveSetup(token);
         }),
         probe('Firestore', async () => {
           if (!uid) throw new Error('not authenticated');

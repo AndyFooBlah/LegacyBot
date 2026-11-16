@@ -61,7 +61,7 @@ src/
 │   ├── shared/        # Layout, ErrorBoundary, Logo
 │   └── storyteller/   # StorytellerDashboard
 ├── hooks/             # useAuth, useFamily, useDossier, useUnifiedSession, useEvents, useInvitations
-├── services/          # firebase, gemini, storage, audioUtils, memoirExport, postSessionAnalysis, gedcomParser, invitations, adminActions
+├── services/          # firebase, gemini (model constants, instruction builder), liveSession (Live options + tool declarations), liveProbe, storage, memoirExport, postSessionAnalysis, gedcomParser, invitations, adminActions
 ├── types.ts           # TypeScript interfaces
 └── App.tsx            # Router setup (11 routes)
 ```
@@ -72,9 +72,9 @@ src/
 
 `useUnifiedSession` adds LegacyBot-specific concerns:
 
-- Async context loading before `startSession` (completed session count, previous session summary, recent dates, talk context)
+- Async context loading before `startSession` (completed session count, previous session summary, recent dates)
 - System instruction assembly via `buildSessionInstruction`
-- 13 LegacyBot-specific tool declarations (`endSession` is injected by VoiceCommon automatically)
+- The Live model, voice and turn-taking options, and 15 LegacyBot-specific tool declarations, all from `src/services/liveSession.ts` (`endSession` is injected by VoiceCommon automatically; `showPhoto` is added when the dossier has prompt photos)
 - Tool call dispatch for both LB-specific tools and KC knowledge tools
 - Post-session analysis: `extractEvents`, `assessEngagement`, `suggestQuestions`
 - Speaker tracking for `recordFact` attribution
@@ -102,6 +102,7 @@ VoiceCommon's create, finalize, and transcript sync calls all use this prefix au
 
 - [Product Requirements](product_requirements.md) — functional requirements, user stories, and UX goals
 - [Design Document](design.md) — architecture, data model, security rules, testing strategy, and roadmap
+- [Testing](TESTING.md) — the offline tests, the live Gemini Live conformance suite and its canary, what they cover and what they cost
 
 ## Getting Started
 
@@ -190,9 +191,12 @@ firebase deploy --only functions
 ### Running Tests
 
 ```bash
-npm test            # single run
+npm test            # single run (offline; no network, no key)
 npm run test:watch  # watch mode
+npm run test:live   # LIVE: real Gemini Live sessions with the production config; skips without GEMINI_API_KEY
 ```
+
+`npm run test:live` opens real, paid Gemini Live sessions (a few US cents per run) and is not part of `npm test` or CI. [TESTING.md](TESTING.md) says how to supply the key at run time, what the suite covers and what it does not.
 
 ## Designating a superadmin
 
@@ -231,6 +235,8 @@ GitHub Actions runs automatically on every push to `main` and on every pull requ
 | Tests | `npm test` | Run the full test suite |
 
 Linting (`npm run lint`) is available locally but is not yet part of CI.
+
+A separate workflow, [`live-contract.yml`](.github/workflows/live-contract.yml), runs the live Gemini Live suite weekly. It is off unless the repository secret `LIVE_TEST_GEMINI_API_KEY` exists; see [TESTING.md](TESTING.md).
 
 CI uses Node 24 on Ubuntu with npm caching enabled for fast installs; the shared libraries install from npmjs.org like any other dependency. A concurrency group ensures that only one run per branch is active at a time — pushing again cancels the previous in-progress run.
 
@@ -306,7 +312,7 @@ On the paid tier, conversation data is retained only transiently for abuse detec
 
 #### Google Gemini Files API (post-session refinement)
 
-After each session completes, a Cloud Function uploads the session recording to the **Gemini Files API** and runs an offline transcript-refinement pass (`gemini-3.1-pro-preview` audio input) to produce higher-fidelity text; the real-time transcript is kept in `editHistory`. Files uploaded this way are stored by Google for **up to 48 hours** and then deleted automatically; the same paid-tier data-processing terms apply. This is the only time a full recording leaves your Firebase project. A per-dossier **"Do not upload recordings for offline refinement"** switch in the dossier editor disables the hop entirely, and the dossier editor's *Data & privacy* panel explains it in plain language alongside a consent record (who confirmed the storyteller agreed, when, verbally or in writing).
+After each session completes, a Cloud Function uploads the session recording to the **Gemini Files API** and runs an offline transcript-refinement pass (`REASONING_MODEL`, audio input) to produce higher-fidelity text; the real-time transcript is kept in `editHistory`. Files uploaded this way are stored by Google for **up to 48 hours** and then deleted automatically; the same paid-tier data-processing terms apply. This is the only time a full recording leaves your Firebase project. A per-dossier **"Do not upload recordings for offline refinement"** switch in the dossier editor disables the hop entirely, and the dossier editor's *Data & privacy* panel explains it in plain language alongside a consent record (who confirmed the storyteller agreed, when, verbally or in writing).
 
 ### Data residency and the Cloud Data Processing Addendum
 
@@ -318,7 +324,7 @@ If you are operating in the EU or processing data from EU residents, confirm tha
 
 ```
 Storyteller voice → Gemini Live API (transient, paid tier = not retained or used for training)
-                  → useAudioMixer → WebM/Opus file → Firebase Cloud Storage (kept until 30 days after a deletion request)
+                  → VoiceCommon audio mixer → WebM/Opus file → Firebase Cloud Storage (kept until 30 days after a deletion request)
                   → onSessionCompleted → Gemini Files API (≤48 h, unless the dossier opts out) → refined transcript
 
 Gemini transcription → useSession → Firestore transcript/entries (kept until 30 days after a deletion request)

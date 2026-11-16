@@ -23,9 +23,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { buildSystemInstruction, BuildInstructionOptions, buildTalkSystemInstruction, BuildTalkInstructionOptions } from '../../services/gemini';
+import { buildSystemInstruction, BuildInstructionOptions } from '../../services/gemini';
 import { Dossier, InterviewQuestion } from '../../types';
-import { TalkContext } from '../../services/storage';
 
 /** Minimal valid Dossier for testing. */
 function makeDossier(overrides: Partial<Dossier> = {}): Dossier {
@@ -233,113 +232,5 @@ describe('buildSystemInstruction', () => {
     const instruction = buildSystemInstruction(makeOptions());
     expect(instruction).toContain('EMOTIONAL AWARENESS');
     expect(instruction).toContain('reportEmotionalObservation');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// buildTalkSystemInstruction
-// ---------------------------------------------------------------------------
-
-function makeTalkContext(overrides: Partial<TalkContext> = {}): TalkContext {
-  return {
-    recentTranscripts: [],
-    eventTitles: [],
-    miscFactTexts: [],
-    ...overrides,
-  };
-}
-
-function makeTalkOptions(overrides: Partial<BuildTalkInstructionOptions> = {}): BuildTalkInstructionOptions {
-  return {
-    dossier: makeDossier(),
-    talkContext: makeTalkContext(),
-    ...overrides,
-  };
-}
-
-describe('buildTalkSystemInstruction', () => {
-  it('returns a non-empty string', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction.length).toBeGreaterThan(100);
-  });
-
-  it('addresses the storyteller by name', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({ dossier: makeDossier({ storytellerName: 'Margaret' }) }));
-    expect(instruction).toContain('Margaret');
-  });
-
-  it('uses preferredName when provided', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({ preferredName: 'Maggie' }));
-    expect(instruction).toContain('Maggie');
-    expect(instruction).not.toContain('Margaret');
-  });
-
-  it('includes the recordFact tool reference', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction).toContain('recordFact');
-  });
-
-  it('includes the endTalk tool reference', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction).toContain('endTalk');
-  });
-
-  it('does not include interview-mode tools', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction).not.toContain('updateQuestionStatus');
-    expect(instruction).not.toContain('Story Queue');
-  });
-
-  it('embeds storyteller biography', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({
-      dossier: makeDossier({ storytellerContext: 'Grew up on a farm in Iowa.' }),
-    }));
-    expect(instruction).toContain('Grew up on a farm in Iowa.');
-  });
-
-  it('includes prior session transcripts', () => {
-    const talkContext = makeTalkContext({
-      recentTranscripts: [
-        { sessionId: 'session-1', date: 'January 1, 2026', excerpt: 'Storyteller: We moved to Ohio in 1955.' },
-      ],
-    });
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({ talkContext }));
-    expect(instruction).toContain('We moved to Ohio in 1955.');
-    expect(instruction).toContain('January 1, 2026');
-  });
-
-  it('includes event titles', () => {
-    const talkContext = makeTalkContext({
-      eventTitles: ['Marriage of Walter and Margaret', 'Birth of Arthur'],
-    });
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({ talkContext }));
-    expect(instruction).toContain('Marriage of Walter and Margaret');
-    expect(instruction).toContain('Birth of Arthur');
-  });
-
-  it('includes previously recorded misc facts', () => {
-    const talkContext = makeTalkContext({
-      miscFactTexts: ['Father worked at the mill until 1962.'],
-    });
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({ talkContext }));
-    expect(instruction).toContain('Father worked at the mill until 1962.');
-  });
-
-  it('handles no prior context gracefully', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions({
-      talkContext: makeTalkContext(),
-    }));
-    expect(instruction).toContain('No previous sessions');
-    expect(instruction).toContain('No events recorded');
-  });
-
-  it('instructs to note corrections with isCorrection', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction).toContain('isCorrection');
-  });
-
-  it('discourages prompting the user to keep talking', () => {
-    const instruction = buildTalkSystemInstruction(makeTalkOptions());
-    expect(instruction).toContain('Do NOT prompt');
   });
 });

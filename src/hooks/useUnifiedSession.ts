@@ -31,12 +31,14 @@
  *     (topics + status, no findings), and family tree. Prior detail (biography,
  *     transcripts, events, facts, per-question findings) is fetched on demand
  *     via searchContext / getBiography / getQuestionFindings, not inlined.
- *   - Turn-taking mode selected by TURN_MODE (auto server VAD + LOW sensitivity,
- *     or client-side manual turn control in VoiceCommon).
+ *   - Live model, voice and turn-taking options from services/liveSession.ts
+ *     (TURN_MODE: auto server VAD + LOW sensitivity, or client-side manual
+ *     turn control in VoiceCommon).
  *   - Family-scoped Firestore path:
  *       families/{familyId}/dossiers/{dossierId}/sessions
- *   - 15 LB-specific tool declarations (endSession is injected by VC;
- *     showPhoto is added only when prompt photos exist)
+ *   - 15 LB-specific tool declarations, declared in services/liveSession.ts
+ *     (endSession is injected by VC; showPhoto is added only when prompt
+ *     photos exist)
  *   - Tool call dispatch: LB-specific tools + KC knowledge tools
  *   - Post-session analysis: extractEvents, assessEngagement, suggestQuestions,
  *     generateProfileSummary (rolling profile stored on the dossier)
@@ -47,19 +49,17 @@
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { Type, FunctionDeclaration } from '@google/genai';
+import type { FunctionDeclaration } from '@google/genai';
 import { Timestamp } from 'firebase/firestore';
 import { useSession } from '@andyfooblah/voice-common';
 import {
   searchWikipedia,
-  wikipediaTool,
-  computeTimeDifferenceTool,
-  computeTimeOffsetTool,
   getTimeDifference,
   getTimeOffset,
 } from '@andyfooblah/knowledge-common';
 import { Message, Dossier, InterviewQuestion, FamilyMember, PromptPhoto, TranscriptEntry, ConnectionStatus } from '../types';
-import { buildSessionInstruction, LIVE_MODEL, LIVE_THINKING_LEVEL } from '../services/gemini';
+import { buildSessionInstruction } from '../services/gemini';
+import { buildSessionLiveOptions, buildSessionTools, buildGreetingTrigger } from '../services/liveSession';
 import { getJoke, searchPlace, getDistanceBetweenPlaces, getWeather, searchContext } from '../services/externalSearch';
 import {
   updateQuestionStateInFirestore,
@@ -78,15 +78,6 @@ import {
   archiveAudioToGCS,
 } from '../services/storage';
 import { extractEvents, assessEngagement, suggestQuestions, generateProfileSummary } from '../services/postSessionAnalysis';
-
-/**
- * Turn-taking mode (flip to compare):
- *   'manual' — client-side VAD; the bot waits `responseWaitSeconds` of real
- *              silence before responding (patient, robust to eager end-of-turn).
- *   'auto'   — Gemini server VAD with LOW end-of-speech sensitivity (snappier,
- *              but can grab the turn during a pause on this native-audio model).
- */
-const TURN_MODE: 'manual' | 'auto' = 'auto';
 
 export interface UseUnifiedSessionOptions {
   familyId: string;
@@ -115,172 +106,6 @@ export interface UseUnifiedSessionReturn {
   stopSession: () => Promise<void>;
   flushPartialSession: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Tool declarations
-// ---------------------------------------------------------------------------
-
-const updateQuestionStatusTool: FunctionDeclaration = {
-  name: 'updateQuestionStatus',
-  description: 'Mark a story queue question as asked, skipped, or answered. Call after each question is addressed.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      id: { type: Type.STRING, description: 'Question ID from the story queue.' },
-      status: { type: Type.STRING, description: 'New status: "asked", "answered", or "skipped".' },
-      findings: { type: Type.STRING, description: 'Optional summary of what was said.' },
-    },
-    required: ['id', 'status'],
-  },
-};
-
-const reportEmotionalObservationTool: FunctionDeclaration = {
-  name: 'reportEmotionalObservation',
-  description: 'Log an emotional observation about the storyteller (e.g. distress, joy, nostalgia).',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      mood: { type: Type.STRING, description: 'Observed emotional state.' },
-      confidence: { type: Type.STRING, description: 'Confidence: "high", "medium", or "low".' },
-      trigger: { type: Type.STRING, description: 'What seemed to trigger this emotion.' },
-      recommendation: { type: Type.STRING, description: 'Suggested response or topic change.' },
-    },
-    required: ['mood', 'confidence'],
-  },
-};
-
-const setPreferredNameTool: FunctionDeclaration = {
-  name: 'setPreferredName',
-  description: 'Record the name the storyteller prefers to be called by.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      name: { type: Type.STRING, description: 'The preferred name.' },
-    },
-    required: ['name'],
-  },
-};
-
-const identifySpeakerTool: FunctionDeclaration = {
-  name: 'identifySpeaker',
-  description: 'Identify who is currently speaking (e.g. a family member who joined). Use null for the primary storyteller.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      speakerLabel: { type: Type.STRING, description: 'Name of current speaker, or null for primary storyteller.' },
-      confidence: { type: Type.STRING, description: 'Confidence: "high", "medium", or "low".' },
-    },
-    required: ['confidence'],
-  },
-};
-
-const recordFactTool: FunctionDeclaration = {
-  name: 'recordFact',
-  description: 'Record a noteworthy fact or correction shared during the conversation.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      text: { type: Type.STRING, description: 'The fact to record.' },
-      isCorrection: { type: Type.BOOLEAN, description: 'True if this corrects a previously recorded fact.' },
-      correctionNote: { type: Type.STRING, description: 'Explanation of the correction (optional).' },
-    },
-    required: ['text', 'isCorrection'],
-  },
-};
-
-const searchContextTool: FunctionDeclaration = {
-  name: 'searchContext',
-  description: 'Search the family\'s accumulated knowledge for context relevant to the current conversation topic.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      query: { type: Type.STRING, description: 'The topic or question to search for.' },
-      topK: { type: Type.NUMBER, description: 'Number of results to return (default 4).' },
-    },
-    required: ['query'],
-  },
-};
-
-const getBiographyTool: FunctionDeclaration = {
-  name: 'getBiography',
-  description: "Retrieve the storyteller's full background/biography on record. The prompt only carries a short profile; call this when you want the complete background before asking about something specific.",
-  parameters: {
-    type: Type.OBJECT,
-    properties: {},
-    required: [],
-  },
-};
-
-const getQuestionFindingsTool: FunctionDeclaration = {
-  name: 'getQuestionFindings',
-  description: 'Retrieve what has already been learned (accumulated findings) about a specific Story Queue question, by its id. Call this before revisiting a topic so you build on prior answers instead of repeating them.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      questionId: { type: Type.STRING, description: 'The id of the Story Queue question.' },
-    },
-    required: ['questionId'],
-  },
-};
-
-const searchPlaceTool: FunctionDeclaration = {
-  name: 'searchPlace',
-  description: 'Look up a place by name and return its address and location details.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      query: { type: Type.STRING, description: 'Place name or address to look up.' },
-    },
-    required: ['query'],
-  },
-};
-
-const getDistanceTool: FunctionDeclaration = {
-  name: 'getDistanceBetweenPlaces',
-  description: 'Calculate the approximate distance between two named places.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      placeA: { type: Type.STRING, description: 'First place name.' },
-      placeB: { type: Type.STRING, description: 'Second place name.' },
-    },
-    required: ['placeA', 'placeB'],
-  },
-};
-
-const getJokeTool: FunctionDeclaration = {
-  name: 'getJoke',
-  description: 'Fetch a random clean joke to lighten the mood.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {},
-    required: [],
-  },
-};
-
-const getWeatherTool: FunctionDeclaration = {
-  name: 'getWeather',
-  description: 'Get the current weather for a location the storyteller mentions.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      location: { type: Type.STRING, description: 'City or place name.' },
-    },
-    required: ['location'],
-  },
-};
-
-const showPhotoTool: FunctionDeclaration = {
-  name: 'showPhoto',
-  description: 'Display a prompt photo to the storyteller to help them recall a memory.',
-  parameters: {
-    type: Type.OBJECT,
-    properties: {
-      photoId: { type: Type.STRING, description: 'ID of the photo to display.' },
-    },
-    required: ['photoId'],
-  },
-};
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -360,25 +185,9 @@ export function useUnifiedSession({
   // Tool list — only changes when promptPhotos changes
   // ---------------------------------------------------------------------------
 
-  const tools: FunctionDeclaration[] = useMemo(() => [
-    updateQuestionStatusTool,
-    reportEmotionalObservationTool,
-    setPreferredNameTool,
-    identifySpeakerTool,
-    recordFactTool,
-    searchContextTool,
-    getBiographyTool,
-    getQuestionFindingsTool,
-    searchPlaceTool,
-    getDistanceTool,
-    getJokeTool,
-    getWeatherTool,
-    wikipediaTool,
-    computeTimeDifferenceTool,
-    computeTimeOffsetTool,
-    ...(promptPhotos && promptPhotos.length > 0 ? [showPhotoTool] : []),
-    // Note: endSession is injected by VoiceCommon's useSession automatically
-  ], [promptPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hasPromptPhotos = !!promptPhotos && promptPhotos.length > 0;
+  // Note: endSession is injected by VoiceCommon's useSession automatically
+  const tools: FunctionDeclaration[] = useMemo(() => buildSessionTools(hasPromptPhotos), [hasPromptPhotos]);
 
   // ---------------------------------------------------------------------------
   // Post-session analysis (runs after VC finalizes the session)
@@ -671,26 +480,9 @@ export function useUnifiedSession({
       }
       return archiveAudioToGCS(blob, fId, dId, sessionId);
     },
-    speechConfig: dossier ? {
-      voiceConfig: {
-        prebuiltVoiceConfig: { voiceName: dossier.selectedVoice },
-      },
-    } : undefined,
-    // How patiently the interviewer waits before stepping in when the
-    // storyteller pauses. Configured per-dossier in seconds; default 1.5s.
-    endOfSpeechSilenceMs: Math.round((dossier?.responseWaitSeconds ?? 1.5) * 1000),
-    // Storytellers often pause mid-thought while recalling. In 'manual' mode we
-    // drive turn boundaries client-side (bot waits responseWaitSeconds of real
-    // silence). In 'auto' mode we fall back to Gemini's server VAD with LOW
-    // end-of-speech sensitivity so it's at least less eager to grab the turn.
-    // See TURN_MODE at the top of this file to switch.
-    endOfSpeechSensitivity: 'LOW',
-    manualTurnControl: TURN_MODE === 'manual',
-    // gemini-3.8-live (stable) replaces gemini-3.1-flash-live-preview at the
-    // same price. It rejects thinkingConfig outright, so thinkingLevel must be
-    // 'none' — VoiceCommon still defaults to MINIMAL for other consumers.
-    liveModel: LIVE_MODEL,
-    thinkingLevel: LIVE_THINKING_LEVEL,
+    // Model, thinking, voice and turn-taking: one pure function shared with
+    // the tests, so the live suite checks the setup this hook really sends.
+    ...buildSessionLiveOptions(dossier),
   });
 
   // Keep messagesLatestRef and sessionIdForAnalysisRef up to date
@@ -775,10 +567,7 @@ export function useUnifiedSession({
       recentSessionDates,
     });
 
-    const greetingTrigger =
-      completedSessionCount === 0
-        ? `[First session with ${d.storytellerName}. Introduce yourself and begin as instructed.]`
-        : `[Returning session #${completedSessionCount + 1} with ${d.storytellerName}. Welcome them back as instructed and continue their story.]`;
+    const greetingTrigger = buildGreetingTrigger(completedSessionCount, d.storytellerName);
 
     console.log('[Session] currentDateTime:', currentDateTime);
 
