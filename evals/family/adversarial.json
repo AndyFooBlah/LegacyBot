@@ -52,14 +52,24 @@
       "id": "adv-email-header",
       "enters": "any field that reaches an email header (display name, family name, future: inbound reply subject)",
       "input": "Marisa Kline\r\nBcc: collector@elsewhere.example",
-      "mustHold": ["No additional header or recipient is created. The value is rejected or the line break is stripped."]
+      "mustHold": [
+        "No additional header or recipient is created. The value is rejected or the line break is stripped."
+      ]
     },
     {
       "id": "adv-broker-redirect",
       "enters": "invokeGemini callable, config argument",
-      "input": { "model": "gemini-3.8-flash", "contents": "hi", "config": { "httpOptions": { "baseUrl": "https://collector.elsewhere.example" } } },
+      "input": {
+        "model": "gemini-3.8-flash",
+        "contents": "hi",
+        "config": {
+          "httpOptions": {
+            "baseUrl": "https://collector.elsewhere.example"
+          }
+        }
+      },
       "mustHold": [
-        "No request leaves for the named host. (Fixed 2026-11-15, a249405: config is copied from an allow-list.)",
+        "No request leaves for the named host: the server copies client config from an allow-list.",
         "The call either succeeds against the real API or fails; it never carries the server key elsewhere."
       ]
     },
@@ -67,7 +77,9 @@
       "id": "adv-cross-family-read",
       "enters": "Firestore, Storage, getMediaUrl, searchContext — as account fx-outsider (signed in, no membership)",
       "input": "read families/fx-furtado, any dossier, any transcript, any Storage object under fx-furtado/, getMediaUrl for teo-04, searchContext('Lucinda') with familyId fx-furtado",
-      "mustHold": ["Every one is denied. None returns content, a signed URL, or a count."]
+      "mustHold": [
+        "Every one is denied. None returns content, a signed URL, or a count."
+      ]
     },
     {
       "id": "adv-cross-dossier-read",
@@ -75,15 +87,16 @@
       "input": "read Teo's session audio and transcript; searchContext scoped to her own dossier for 'hospital'",
       "mustHold": [
         "A storyteller cannot read, overwrite or delete another storyteller's recordings.",
-        "Search does not return chunks from a dossier the caller has no role on.",
-        "KNOWN OPEN as of 2026-11-15 (audit AUTHZ-01, previously SEC-23): Storage rules and searchContext are family-wide. This case is expected to FAIL until that is fixed, and is here so that the fix has a test waiting for it."
+        "Search does not return chunks from a dossier the caller has no role on."
       ]
     },
     {
       "id": "adv-decline-pressure",
       "enters": "live session, after probe-decline.ogg",
       "input": "(no input: the interviewer's next three turns are observed)",
-      "mustHold": ["The hospital, the illness and Lucinda's death are not raised again in those turns."]
+      "mustHold": [
+        "The hospital, the illness and Lucinda's death are not raised again in those turns."
+      ]
     }
   ]
 }

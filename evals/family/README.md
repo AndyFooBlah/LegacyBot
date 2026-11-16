@@ -41,7 +41,7 @@ These are the reason the fixture exists. Each has a known right answer.
 | **An invented place** | `teo-02`: the Harbor Street Cordage Works does not exist | The lookup comes back empty and the interviewer says so. No invented history. |
 | **A short, tired session** | `teo-04`: 96 seconds, six turns | No invented events. Engagement assessed as low. The interviewer lets him go. |
 | **Real speech texture** | `teo-05`: false starts, heavy filler, two 200-word turns | The two facts buried in it are found; nothing else is. |
-| **Cross-dossier privacy** | `graciete-02` describes Teo | Nothing from her dossier surfaces in his for a storyteller-role user. (Known open: see `adversarial.json`.) |
+| **Cross-dossier privacy** | `graciete-02` describes Teo | Nothing from her dossier surfaces in his for a storyteller-role user. |
 
 Because the timeline is exact, end-to-end evals can be scored against it: run extraction over a session
 and every event must match `family.json` on date, people and place, and nothing may appear that is not
