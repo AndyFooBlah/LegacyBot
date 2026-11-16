@@ -35,7 +35,9 @@ const redact = (text) =>
   String(text)
     .replace(/AIza[A-Za-z0-9_-]{20,}/g, '[REDACTED]')
     .replace(/auth_tokens\/[A-Za-z0-9_.-]+/g, '[REDACTED]');
-const cell = (text) => redact(text).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
+// Escape backslashes before pipes, so text ending in a backslash cannot
+// un-escape the pipe that follows it and break out of its table cell.
+const cell = (text) => redact(text).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
 
 if (!file || !fs.existsSync(file)) {
   console.log('No live results were recorded.');

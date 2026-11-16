@@ -44,7 +44,7 @@ import { LIVE_TOKEN_API_VERSION, buildLiveTokenRequest } from '../../../function
 import { LIVE_MODEL } from '../../services/gemini';
 import { buildLiveProbeUrl, probeLiveSetup } from '../../services/liveProbe';
 import { buildFurtadoSessionInputs } from './furtadoSession';
-import { LIVE_API_KEY, customCheck, describeLive, redact, targetFor } from './liveEnv';
+import { LIVE_API_KEY, customCheck, describeLive, redact, runGreeting, targetFor } from './liveEnv';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FUNCTIONS_DIR = path.resolve(HERE, '../../../functions');
@@ -96,15 +96,19 @@ describeLive(`live: broker-minted token → production session on ${LIVE_MODEL}`
       });
       try {
         const setupMs = Date.now() - startedAt;
-        const since = session.mark();
-        session.sendText(inputs.greetingTrigger);
-        const audio = await session.waitForType('audio', 30_000, { since });
-        await session.waitForType('turnComplete', 45_000, { since: session.trace.indexOf(audio) });
-        const greeting = session.outputText(since).trim();
-        if (!greeting) throw new Error('no greeting transcript');
+        const opening = await runGreeting(session, inputs.greetingTrigger);
+        if (!opening.greeting) throw new Error('no greeting transcript');
         return {
-          detail: `minted on ${LIVE_TOKEN_API_VERSION}, connected on ${LIVE_API_VERSION}, greeted: "${greeting.slice(0, 50)}"`,
-          metrics: { mintSdk: sdk, mintApiVersion: LIVE_TOKEN_API_VERSION, connectApiVersion: LIVE_API_VERSION, setupMs, audioBytes: session.audioBytes(since) },
+          detail: `minted on ${LIVE_TOKEN_API_VERSION}, connected on ${LIVE_API_VERSION}, greeted: "${opening.greeting.slice(0, 50)}"`,
+          metrics: {
+            mintSdk: sdk,
+            mintApiVersion: LIVE_TOKEN_API_VERSION,
+            connectApiVersion: LIVE_API_VERSION,
+            setupMs,
+            firstAudioMs: opening.firstAudioMs,
+            toolCallsWhileOpening: opening.toolCalls.join(','),
+            audioBytes: session.audioBytes(opening.since),
+          },
         };
       } finally {
         await session.close();

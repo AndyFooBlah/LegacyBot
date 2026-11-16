@@ -43,8 +43,8 @@ Both shared libraries are published to npmjs.org and consumed as normal versione
 
 | Package | Source | Role |
 |---------|--------|------|
-| `@andyfooblah/voice-common` | `^0.14.0` ([VoiceCommon](https://github.com/AndyFooBlah/VoiceCommon)) | Gemini Live session lifecycle, audio mixing, archival, session resumption, Firestore session management |
-| `@andyfooblah/knowledge-common` | `^1.2.0` ([KnowledgeCommon](https://github.com/AndyFooBlah/KnowledgeCommon)) | Knowledge tool declarations and handlers (Wikipedia, date/time, maps, weather, jokes) |
+| `@andyfooblah/voice-common` | `^0.16.1` ([VoiceCommon](https://github.com/AndyFooBlah/VoiceCommon)) | Gemini Live session lifecycle, the Live model registry and connect-config builder, audio mixing, archival, session resumption, Firestore session management, and the live conformance test kit (`/testing`) |
+| `@andyfooblah/knowledge-common` | `^1.3.1` ([KnowledgeCommon](https://github.com/AndyFooBlah/KnowledgeCommon)) | Knowledge tool declarations and handlers (Wikipedia, date/time, maps, weather, jokes) |
 
 ## Project Structure
 

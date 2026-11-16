@@ -23,8 +23,8 @@
 
 import fs from 'node:fs';
 import { describe } from 'vitest';
-import { buildLiveConnectConfig, makeRedactor } from '@andyfooblah/voice-common/testing';
-import type { LiveAppProfile, LiveCheckResult, LiveCheckTarget } from '@andyfooblah/voice-common/testing';
+import { LiveWaitError, buildLiveConnectConfig, formatLiveTrace, makeRedactor } from '@andyfooblah/voice-common/testing';
+import type { LiveAppProfile, LiveCheckResult, LiveCheckTarget, LiveTestSession } from '@andyfooblah/voice-common/testing';
 import type { FurtadoSessionInputs } from './furtadoSession';
 
 export const LIVE_API_KEY = process.env.GEMINI_API_KEY ?? '';
@@ -109,9 +109,124 @@ export async function customCheck(
     const { detail, metrics = {}, status = 'pass' } = await body();
     expectCheck({ name, pass: true, status, detail, metrics, durationMs: Date.now() - startedAt }, label);
   } catch (err) {
-    const detail = redact(err instanceof Error ? err.message : String(err));
-    console.log(`[live] FAIL             ${label} :: ${name} :: ${detail}`);
-    record({ label, name, pass: false, status: 'fail', detail, metrics: {}, durationMs: Date.now() - startedAt });
-    throw new Error(`[${label}] ${name} failed: ${detail}`);
+    // The first line is the verdict; any further lines are an event trace.
+    const full = redact(err instanceof Error ? err.message : String(err));
+    const [detail, ...trace] = full.split('\n').map((line) => line.trim());
+    console.log(`[live] FAIL             ${label} :: ${name} :: ${full}`);
+    record({ label, name, pass: false, status: 'fail', detail, metrics: {}, durationMs: Date.now() - startedAt, ...(trace.length ? { trace } : {}) });
+    throw new Error(`[${label}] ${name} failed: ${full}`);
   }
+}
+
+/**
+ * What the app's `onToolCall` would hand back, near enough for a test: the
+ * model must never be left waiting on a call nobody answers.
+ */
+export function stubToolResult(name: string): string {
+  if (name === 'updateQuestionStatus') return 'Question status updated.';
+  if (name === 'recordFact') return 'Fact recorded.';
+  return 'No additional information found.';
+}
+
+/** Answer every tool call in the trace that has not been answered yet. */
+export function answerPendingToolCalls(session: LiveTestSession, since: number): string[] {
+  const answered: string[] = [];
+  for (const event of session.events('toolCall', since)) {
+    for (const call of event.calls) {
+      if (session.trace.some((e) => e.type === 'sentToolResponse' && e.id === call.id)) continue;
+      session.respondToTool(call, stubToolResult(call.name));
+      answered.push(call.name);
+    }
+  }
+  return answered;
+}
+
+export interface GreetingRun {
+  /** Trace index where the cue was sent. */
+  since: number;
+  /** Trace index where the opening was judged finished. */
+  settled: number;
+  /** Everything the bot said from the cue until it settled. */
+  greeting: string;
+  /** Tools the bot called while opening, in order (each was answered). */
+  toolCalls: string[];
+  firstAudioMs: number;
+  turnCompletes: number;
+}
+
+/**
+ * Send the opening cue as the app does and collect the bot's whole opening.
+ *
+ * On this model a tool call is asynchronous: the turn that issues it ends at
+ * once (`turnComplete`), and the bot speaks again when the result arrives. A
+ * returning-session opening often looks like "greeting sentence, tool call,
+ * turnComplete, tool result, follow-up question, turnComplete", and a tool
+ * may even be called before the first word. So the opening is over only when
+ * the bot has spoken, a `turnComplete` has followed its last audio, and it
+ * has then stayed quiet for `quietMs`. Tool calls are answered as they come,
+ * as the app's `onToolCall` would.
+ */
+export async function runGreeting(
+  session: LiveTestSession,
+  cue: string,
+  options: { timeoutMs?: number; quietMs?: number } = {},
+): Promise<GreetingRun> {
+  const timeoutMs = options.timeoutMs ?? 60_000;
+  const quietMs = options.quietMs ?? 4_000;
+  const since = session.mark();
+  const sentAt = session.now();
+  session.sendText(cue);
+
+  const deadline = Date.now() + timeoutMs;
+  const toolCalls: string[] = [];
+  let cursor = since;
+  let firstAudioT: number | undefined;
+  let turnCompleteAfterAudio = false;
+  const fail = (what: string): never => {
+    throw new Error(
+      `${what} (tool calls answered: ${toolCalls.join(', ') || 'none'}; said: "${session.outputText(since).trim().slice(0, 120)}")\n  ` +
+        formatLiveTrace(session.trace, 60).join('\n  '),
+    );
+  };
+
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) fail(`the opening did not finish within ${timeoutMs} ms`);
+    const canSettle = firstAudioT !== undefined && turnCompleteAfterAudio;
+    const event = await session
+      .waitFor((e) => e.type === 'audio' || e.type === 'toolCall' || e.type === 'turnComplete', canSettle ? Math.min(quietMs, remaining) : remaining, {
+        since: cursor,
+        description: 'the opening greeting',
+      })
+      .catch((err: unknown) => {
+        if (err instanceof LiveWaitError && !err.closed) return undefined; // timed out
+        throw err;
+      });
+    if (!event) {
+      if (canSettle) break; // quiet for quietMs after a finished turn
+      fail(firstAudioT === undefined ? `the bot never spoke after the opening cue` : `the bot started speaking but its turn never completed`);
+      break;
+    }
+    cursor = session.trace.indexOf(event) + 1;
+    if (event.type === 'audio') {
+      firstAudioT ??= event.t;
+      turnCompleteAfterAudio = false;
+    } else if (event.type === 'turnComplete') {
+      if (firstAudioT !== undefined) turnCompleteAfterAudio = true;
+    } else if (event.type === 'toolCall') {
+      for (const call of event.calls) {
+        session.respondToTool(call, stubToolResult(call.name));
+        toolCalls.push(call.name);
+      }
+    }
+  }
+
+  return {
+    since,
+    settled: session.mark(),
+    greeting: session.outputText(since).trim(),
+    toolCalls,
+    firstAudioMs: Math.round((firstAudioT ?? sentAt) - sentAt),
+    turnCompletes: session.events('turnComplete', since).length,
+  };
 }

@@ -28,6 +28,7 @@
 
 import { it } from 'vitest';
 import {
+  LiveTestSession,
   checkAudioTurn,
   checkBargeIn,
   checkContextWindowCompression,
@@ -36,13 +37,38 @@ import {
   checkModelListed,
   checkSessionResumption,
   checkSetupAccepted,
-  checkTextTurn,
   checkToolDeclarationsAccepted,
   checkToolRoundTrip,
 } from '@andyfooblah/voice-common/testing';
 import { LIVE_MODEL } from '../../services/gemini';
 import { buildFurtadoSessionInputs } from './furtadoSession';
-import { LIVE_API_KEY, describeLive, expectCheck, targetFor } from './liveEnv';
+import type { FurtadoSessionInputs } from './furtadoSession';
+import { LIVE_API_KEY, customCheck, describeLive, expectCheck, runGreeting, targetFor } from './liveEnv';
+
+/**
+ * Send the opening cue as the app does and require a spoken, transcribed
+ * opening. Tool calls made on the way are answered (see `runGreeting`): a
+ * returning-session opening sometimes looks something up before speaking.
+ */
+async function openingCue(inputs: FurtadoSessionInputs) {
+  const target = targetFor(inputs);
+  const session = await LiveTestSession.connect({ apiKey: target.apiKey, model: target.model, config: target.config });
+  try {
+    const opening = await runGreeting(session, inputs.greetingTrigger);
+    if (!opening.greeting) throw new Error('the bot produced audio but no transcript');
+    return {
+      detail: `bot opened with "${opening.greeting.slice(0, 60)}"`,
+      metrics: {
+        firstAudioMs: opening.firstAudioMs,
+        audioSeconds: Number((session.audioBytes(opening.since) / 48_000).toFixed(2)),
+        toolCallsWhileOpening: opening.toolCalls.join(','),
+        turnCompletes: opening.turnCompletes,
+      },
+    };
+  } finally {
+    await session.close();
+  }
+}
 
 describeLive(`live: interview session on ${LIVE_MODEL} (returning session, server VAD, 3 s wait)`, () => {
   const inputs = buildFurtadoSessionInputs('returning');
@@ -58,7 +84,7 @@ describeLive(`live: interview session on ${LIVE_MODEL} (returning session, serve
   });
 
   it('the opening cue produces a spoken greeting with a transcript', async () => {
-    expectCheck(await checkTextTurn(target, { prompt: inputs.greetingTrigger }), label);
+    await customCheck(label, 'opening-cue', () => openingCue(inputs));
   });
 
   it('a spoken turn under the app\'s server VAD is transcribed and answered', async () => {
@@ -133,6 +159,6 @@ describeLive(`live: interview session on ${LIVE_MODEL} (first session)`, () => {
   });
 
   it('the first-session cue produces a spoken introduction', async () => {
-    expectCheck(await checkTextTurn(target, { prompt: inputs.greetingTrigger }), label);
+    await customCheck(label, 'opening-cue', () => openingCue(inputs));
   });
 });

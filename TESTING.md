@@ -73,61 +73,65 @@ ever. The checks come from `@andyfooblah/voice-common/testing`; its TESTING.md d
 
 | File | Runs |
 |---|---|
-| `interviewSession.live.test.ts` | A returning session under server VAD with the dossier's 3 s wait: setup accepted; all sixteen tool declarations accepted; the opening cue yields a spoken greeting; a spoken turn is transcribed and answered; tool round trips with `recordFact` and with `searchContext` (stubbed result, which the bot must use); barge-in; session resumption across a reconnect; context compression; the model is listed; the ephemeral-token path; latency. Also setup and greeting for a first session. |
+| `interviewSession.live.test.ts` | A returning session under server VAD with the dossier's 3 s wait: setup accepted; all sixteen tool declarations accepted; the opening cue yields a spoken greeting (tool calls made on the way are answered, as the app does); a spoken turn is transcribed and answered; tool round trips with `recordFact` and with `searchContext` (stubbed result, which the bot must use); barge-in; session resumption across a reconnect; context compression; the model is listed; the ephemeral-token path; latency. Also setup and greeting for a first session. |
 | `turnTaking.live.test.ts` | Patience at the default wait (1.5 s) and at a long one (5 s): a pause of 60% of the wait is one turn and the bot stays silent through it. Then `TURN_MODE = 'manual'`: setup, a manual turn, a tool round trip, barge-in, latency. |
 | `greeting.live.test.ts` | The greeting arrives exactly once, for the largest instruction production builds (a full biography inlined, about 29,000 characters), the usual lean one, and a first session. After the greeting the microphone "opens" onto ten seconds of silence; the bot must not start over. A doubled greeting is a known historical defect, so this one fails loudly with the trace. |
 | `tokenBroker.live.test.ts` | Mints a token exactly as the callable does (same request, same API version, the Cloud Functions package's own SDK when installed), opens a production session with it and gets the greeting; confirms the token is refused on a second use; runs the diagnostics probe with a real token; confirms the probe fails for a made-up token; confirms the URL form the probe used to use is refused. |
 
 ### Results, 2026-11-15
 
-30 of 30 passed on the first attempt, in 5 minutes 17 seconds, against `gemini-3.8-live`. No warnings, no retries.
+30 of 30 passed on the first attempt, in 5 minutes 41 seconds, against `gemini-3.8-live` with `@andyfooblah/voice-common` 0.16.1. No warnings, no retries.
 
 | Preset | Check | Result | Measured |
 |---|---|---|---|
-| greeting / returning-full-biography | greeting-once | pass | 29,116 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
-| greeting / returning | greeting-once | pass | 12,356 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
-| greeting / first-session | greeting-once | pass | 11,328 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
-| interview / returning | setup | pass | setup in 292 ms, 16 tools, thinkingConfig omitted |
+| interview / returning | setup | pass | setup in 217 ms, 16 tools, thinkingConfig omitted |
 | interview / returning | tool-declarations | pass | 16 declarations accepted |
-| interview / returning | text-turn | pass | first audio 819 ms, 9.26 s of speech |
-| interview / returning | audio-turn | pass | transcribed 100%, first audio 3359 ms after speech |
-| interview / returning / recordFact | tool-round-trip | pass | tool called in 616 ms, reply 783 ms after the result |
-| interview / returning / searchContext | tool-round-trip | pass | tool called in 1415 ms, reply 2863 ms after the result |
-| interview / returning | barge-in | pass | interrupted in 223 ms |
+| interview / returning | opening-cue | pass | first audio 1100 ms, 6.26 s of speech |
+| interview / returning | audio-turn | pass | transcribed 100%, first audio 3356 ms after speech |
+| interview / returning / recordFact | tool-round-trip | pass | tool called in 930 ms, reply 824 ms after the result |
+| interview / returning / searchContext | tool-round-trip | pass | tool called in 1120 ms, reply 3784 ms after the result |
+| interview / returning | barge-in | pass | interrupted in 224 ms |
 | interview / returning | session-resumption | pass | code word recalled after reconnect |
 | interview / returning | context-compression | pass | accepted |
 | interview / returning | model-listed | pass | listed, registry status current |
 | interview / returning | ephemeral-token | pass | mint v1alpha, connect v1alpha, turn ran |
-| interview / returning | latency | pass | median 3306 ms (min 3207, max 3325) |
-| interview / first-session | setup | pass | setup in 243 ms, 16 tools, thinkingConfig omitted |
-| interview / first-session | text-turn | pass | first audio 856 ms, 8.23 s of speech |
-| token broker | broker-token-session | pass | minted with functions 1.47.0 SDK on v1alpha, connected on v1alpha, greeted |
+| interview / returning | latency | pass | median 3206 ms (min 3197, max 3338) |
+| interview / first-session | setup | pass | setup in 224 ms, 16 tools, thinkingConfig omitted |
+| interview / first-session | opening-cue | pass | first audio 864 ms, 8.06 s of speech |
+| auto / wait=1.5s (default) | patience | pass | silent through a 900 ms pause, one turn, answered 1828 ms after speech |
+| auto / wait=5s | patience | pass | silent through a 3000 ms pause, one turn, answered 5352 ms after speech |
+| auto / wait=5s | audio-turn | pass | transcribed 100%, first audio 5333 ms after speech |
+| manual | setup | pass | setup in 229 ms, 16 tools, thinkingConfig omitted |
+| manual | manual-turn-control | pass | first audio 1645 ms after activityEnd |
+| manual / recordFact | tool-round-trip | pass | tool called in 708 ms, reply 768 ms after the result |
+| manual | barge-in | pass | interrupted in 71 ms |
+| manual | latency | pass | median 873 ms (min 677, max 1384) |
+| greeting / returning-full-biography | greeting-once | pass | 29,116 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
+| greeting / returning | greeting-once | pass | 12,356 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
+| greeting / first-session | greeting-once | pass | 11,328 char instruction; 1 greeting, 0 bytes of audio in the 10 s after |
+| token broker | broker-token-session | pass | minted with functions 1.47.0 SDK on v1alpha, connected on v1alpha, greeted (answered updateQuestionStatus on the way) |
 | token broker | broker-token-single-use | pass | second use refused (close 1011) |
-| diagnostics probe | probe-setup | pass | setupComplete in 320 ms |
+| diagnostics probe | probe-setup | pass | setupComplete in 409 ms |
 | diagnostics probe | probe-rejects-bad-token | pass | made-up token rejected (close 1007) |
 | diagnostics probe | legacy-url-refused | pass | old URL form refused (close 1007, API key not valid) |
-| auto / wait=1.5s (default) | patience | pass | silent through a 900 ms pause, one turn, answered 1804 ms after speech |
-| auto / wait=5s | patience | pass | silent through a 3000 ms pause, one turn, answered 5330 ms after speech |
-| auto / wait=5s | audio-turn | pass | transcribed 100%, first audio 5322 ms after speech |
-| manual | setup | pass | setup in 215 ms, 16 tools, thinkingConfig omitted |
-| manual | manual-turn-control | pass | first audio 1086 ms after activityEnd |
-| manual / recordFact | tool-round-trip | pass | tool called in 679 ms, reply 824 ms after the result |
-| manual | barge-in | pass | interrupted in 76 ms |
-| manual | latency | pass | median 1180 ms (min 889, max 1491) |
 
-Things worth knowing from that run:
+Four full runs were made that day. Three were 30 of 30 on the first attempt. In the other, one test
+passed only on its retry and one warned, and both were the test's fault, since fixed: it waited for the
+bot to speak without answering a tool call the bot had made first (see the third point below).
 
-- **No doubled greeting**, at 29,116 characters or at the usual 12,356. One greeting, one `turnComplete`, then silence for ten seconds.
-- **Patience is honoured.** With a 1.5 s wait the bot stayed silent through a 0.9 s pause and answered 1.8 s after speech ended; with 5 s, silent through 3 s and answered after 5.3 s. So under server VAD the time to first audio is the configured wait plus about 0.3 s.
-- **Tool calls are asynchronous** on this model: the turn that issues a call ends at once (`turnComplete` arrives before the spoken reply to the result), and call ids start `call_`. The bot spoke a bridging phrase before `searchContext`, as the instruction asks.
-- **Manual turn control** answers about 0.9 to 1.5 s after `activityEnd` and reports barge-in in under 0.1 s (0.2 s under server VAD).
+Things worth knowing from those runs:
+
+- **No doubled greeting** in twelve greeting sessions, at 29,116 characters or at the usual 12,356. One greeting, then silence for ten seconds.
+- **Patience is honoured.** With a 1.5 s wait the bot stayed silent through a 0.9 s pause and answered 1.8 s after speech ended; with 5 s, silent through 3 s and answered after 5.3 to 5.4 s. So under server VAD the time to first audio is the configured wait plus about 0.3 s.
+- **Tool calls are asynchronous** on this model: the turn that issues a call ends at once (`turnComplete` arrives before the spoken reply to the result), and call ids start `call_`. Two consequences seen here. The bot sometimes calls a tool while opening (`updateQuestionStatus` after its greeting sentence, or a lookup before its first word) and then says nothing more until the result arrives, so a client that left a call unanswered would leave the storyteller in silence; the app answers every call. And `turnComplete` does not mean the bot has finished speaking: after a tool result it speaks again as a further turn. `runGreeting` in `src/__tests__/live/liveEnv.ts` encodes both.
+- **Manual turn control** answers about 0.8 to 1.8 s after `activityEnd` and reports barge-in in under 0.1 s (0.2 s under server VAD).
 - **The token is single use**: a second session with the same token is closed with 1011 "Token has been used too many times".
 - **The old diagnostics probe could not fail.** The server accepts the WebSocket handshake for any token and validates only at setup; the URL form the probe used is refused for an ephemeral token the moment a setup is sent.
 - With the production instruction the bot greets first whatever it hears: asked an unrelated general-knowledge question as its first input, it replied with its greeting. That is the instruction working, and in the app the opening cue always comes first.
 
 ### What it costs
 
-A full run opens about forty short sessions and takes about five minutes. Each carries the 12,000 to
+A full run opens about forty short sessions and takes five to six minutes. Each carries the 12,000 to
 29,000 character instruction as text input, plus roughly three minutes of audio in and four out. At the
 model's prices on 2026-11-15 that is an estimated 20 to 40 US cents a run, and under $1 in any case. A
 weekly canary is on the order of $15 a year.
