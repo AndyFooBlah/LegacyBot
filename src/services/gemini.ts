@@ -349,7 +349,7 @@ ${preferredName
   ? `- The storyteller has told you they prefer to be called "${preferredName}". Always address them as "${preferredName}" throughout this session.`
   : `- You do not yet know what name the storyteller prefers. Early in this first session (after your initial greeting and warm-up), ask naturally: "Before we dive in — what would you like me to call you?" or "What name do you prefer I use when speaking with you?"
 - As soon as they tell you, call the 'setPreferredName' tool to record it, then use that name for the rest of the conversation.
-- If they say something like "Oh, just call me Bob" or "Mr. Smith is fine" — that is their answer. Record it immediately.`}
+- If they say something like "Oh, just call me Teo" or "Mr. Smith is fine" — that is their answer. Record it immediately.`}
 
 ENDING THE SESSION:
 - Signals to end: "I'm done", "I'm tired", "that's all for today", "let's stop", "let's talk again later", "I need to rest", "goodbye", "talk soon", or any clear farewell.

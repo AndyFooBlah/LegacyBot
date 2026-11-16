@@ -310,10 +310,10 @@ describe('buildTalkSystemInstruction', () => {
 
   it('includes event titles', () => {
     const talkContext = makeTalkContext({
-      eventTitles: ['Marriage of Ralph and Margaret', 'Birth of Arthur'],
+      eventTitles: ['Marriage of Walter and Margaret', 'Birth of Arthur'],
     });
     const instruction = buildTalkSystemInstruction(makeTalkOptions({ talkContext }));
-    expect(instruction).toContain('Marriage of Ralph and Margaret');
+    expect(instruction).toContain('Marriage of Walter and Margaret');
     expect(instruction).toContain('Birth of Arthur');
   });
 

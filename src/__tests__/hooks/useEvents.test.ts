@@ -102,7 +102,7 @@ describe('createEvent', () => {
   it('calls addDoc and returns the new document id', async () => {
     mockFirestore.addDoc.mockResolvedValueOnce({ id: 'new-evt-id' });
 
-    const id = await createEvent('family-1', 'Marriage of Ralph', 'They married in 1952.', '1952', 'admin-uid');
+    const id = await createEvent('family-1', 'Marriage of Walter', 'They married in 1952.', '1952', 'admin-uid');
 
     expect(id).toBe('new-evt-id');
     expect(mockFirestore.addDoc).toHaveBeenCalledTimes(1);

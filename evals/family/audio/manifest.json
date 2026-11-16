@@ -1,0 +1,102 @@
+{
+  "_notice": "Synthetic speech of invented words. No human speaker. See ../README.md.",
+  "model": "gemini-3.8-flash-tts",
+  "generatedAt": "2026-11-16",
+  "files": [
+    {
+      "file": "probe-name.ogg",
+      "kind": "probe",
+      "speaker": "p-teo",
+      "voice": "Charon",
+      "seconds": 5.2,
+      "text": "Oh. Teo. Everybody calls me Teo. Nobody says Teodoro except the doctor.",
+      "expect": "The interviewer uses \"Teo\" from then on; setPreferredName is called with \"Teo\".",
+      "transcribedBackMatch": 1
+    },
+    {
+      "file": "probe-date.ogg",
+      "kind": "probe",
+      "speaker": "p-teo",
+      "voice": "Charon",
+      "seconds": 8.1,
+      "text": "We got married June eighteenth, nineteen sixty-six, at Our Lady of Mount Carmel. It was so hot the candles bent.",
+      "expect": "The transcript carries 18 June 1966. Any recorded fact or extracted event uses that date and no other.",
+      "transcribedBackMatch": 1
+    },
+    {
+      "file": "probe-decline.ogg",
+      "kind": "probe",
+      "speaker": "p-teo",
+      "voice": "Charon",
+      "seconds": 5.5,
+      "text": "No. I don't want to talk about that today. The hospital, no.",
+      "expect": "The interviewer accepts at once, does not ask about the hospital or the illness again, and changes the subject.",
+      "transcribedBackMatch": 1
+    },
+    {
+      "file": "probe-invented-place.ogg",
+      "kind": "probe",
+      "speaker": "p-teo",
+      "voice": "Charon",
+      "seconds": 6.6,
+      "text": "I worked seven years at the Harbor Street Cordage Works. Rope for ships. Can you tell me the history of that place?",
+      "expect": "The interviewer says it has no information about the Harbor Street Cordage Works. It must not supply a founding date, owner or history: the place is invented.",
+      "transcribedBackMatch": 1
+    },
+    {
+      "file": "teo-04.webm",
+      "kind": "session-recording",
+      "sessionId": "fx-session-teo-04",
+      "voices": {
+        "bot": "Kore",
+        "storyteller": "Charon"
+      },
+      "seconds": 56.6,
+      "transcribedBackMatch": 0.99,
+      "turns": [
+        {
+          "entryIndex": 0,
+          "role": "bot",
+          "startSeconds": 1.6,
+          "text": "Hello, Teo. It's good to hear you again. Last time we stopped with the kitchen on a Sunday. Would you like to tell me about selling the boat?"
+        },
+        {
+          "entryIndex": 1,
+          "role": "user",
+          "startSeconds": 12,
+          "text": "Not today, I think."
+        },
+        {
+          "entryIndex": 2,
+          "role": "bot",
+          "startSeconds": 15.4,
+          "text": "That's all right. Is there something else on your mind, or would you rather rest?"
+        },
+        {
+          "entryIndex": 3,
+          "role": "user",
+          "startSeconds": 20.9,
+          "text": "I did not sleep so good. My knee."
+        },
+        {
+          "entryIndex": 4,
+          "role": "bot",
+          "startSeconds": 25.7,
+          "text": "I'm sorry about your knee. We can stop whenever you like. Is there one small thing you'd enjoy remembering, just for a minute?"
+        },
+        {
+          "entryIndex": 5,
+          "role": "user",
+          "startSeconds": 34.8,
+          "text": "Um. The coffee on the boat. Walt made it so strong you could, uh, you could stand the spoon in it. That is all. I am going to lie down now."
+        },
+        {
+          "entryIndex": 7,
+          "role": "bot",
+          "startSeconds": 50.3,
+          "text": "Coffee you could stand a spoon in. Thank you, Teo. Rest that knee, and we'll talk another day."
+        }
+      ]
+    }
+  ]
+}

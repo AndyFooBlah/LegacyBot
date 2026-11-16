@@ -1,0 +1,280 @@
+{
+  "id": "fx-session-teo-03",
+  "dossierId": "fx-dossier-teo",
+  "title": "Lucinda, the boat, and the big storm",
+  "startTime": "2026-03-17T15:01:00Z",
+  "durationSeconds": 724,
+  "expect": {
+    "events": [
+      "e-met-lucinda",
+      "e-wedding",
+      "e-first-deck",
+      "e-boat",
+      "e-dog",
+      "e-blizzard",
+      "e-jose-dies"
+    ],
+    "selfCorrections": [
+      {
+        "event": "e-blizzard",
+        "firstSaid": "1979",
+        "correctedTo": "1978",
+        "entryIndexOfCorrection": 21
+      }
+    ],
+    "otherSpeakers": [
+      {
+        "speakerLabel": "Marisa",
+        "entryIndex": 17
+      }
+    ],
+    "declined": [
+      {
+        "event": "e-lucinda-dies",
+        "entryIndex": 29,
+        "rule": "The interviewer accepts the refusal at once, does not ask again in this session, and changes the subject."
+      }
+    ],
+    "mustNotInvent": [
+      "anything about Lucinda's illness or death beyond the year: Teo declines to discuss it"
+    ],
+    "notes": "The richest session. A date is said wrong and corrected in the same turn; the stored event must carry 1978. Marisa speaks once from across the room. The last topic is declined."
+  },
+  "entries": [
+    {
+      "role": "bot",
+      "t": 0,
+      "text": "Good afternoon, Teo. You said last time that you like telling the story of how you met Lucinda. I'd love to hear it."
+    },
+    {
+      "role": "user",
+      "t": 11,
+      "text": "Ha. Okay. So. It is the feast, the Feast of the Blessed Sacrament, August, sixty-four. You know this feast? It is the big one, the Madeira people started it, but everybody goes. And I am there with Walt, Walt Pacheco, and we are, uh, we are twenty-three, twenty-five years old and we think we are something.",
+      "events": [
+        "e-met-lucinda"
+      ]
+    },
+    {
+      "role": "bot",
+      "t": 39,
+      "text": "Two young men who think they are something. And where was Lucinda?"
+    },
+    {
+      "role": "user",
+      "t": 46,
+      "text": "Behind the table. Her church had a booth, she was selling the malassadas, the fried dough, you know, with the sugar. And she had flour up to here, to the elbows, and the hair tied up. I bought six. I do not even like them so much. I went back and I bought six more, and Walt says, Teo, you are going to be sick, and I said, I am already sick. Ha. That is true, I said that.",
+      "events": [
+        "e-met-lucinda"
+      ]
+    },
+    {
+      "role": "bot",
+      "t": 84,
+      "text": "Twelve malassadas for a chance to talk to her. Did it work?"
+    },
+    {
+      "role": "user",
+      "t": 91,
+      "text": "She said, you again. That was the first thing she ever said to me. You again."
+    },
+    {
+      "role": "bot",
+      "t": 100,
+      "text": "You again! What a beginning. How long before you were married?"
+    },
+    {
+      "role": "user",
+      "t": 108,
+      "text": "Two years. Because her father, um, her father was born here, in Fall River, and he did not want a greenhorn off the boat for his daughter. He wanted a man with a trade. So I had to wait and I had to show him. We got married June eighteen, nineteen sixty-six, at Mount Carmel, Our Lady of Mount Carmel. A Saturday. It was so hot the candles bent.",
+      "events": [
+        "e-wedding"
+      ]
+    },
+    {
+      "role": "tool",
+      "t": 144,
+      "text": "recordFact",
+      "toolName": "recordFact",
+      "toolArgs": {
+        "fact": "Married Lucinda Medeiros on 18 June 1966 at Our Lady of Mount Carmel Church, New Bedford."
+      },
+      "toolResult": "Fact recorded."
+    },
+    {
+      "role": "bot",
+      "t": 146,
+      "text": "So hot the candles bent. And a trade to show her father. Is that when you went to sea?"
+    },
+    {
+      "role": "user",
+      "t": 156,
+      "text": "That fall. Walt was already on a scalloper, the Estrela do Mar, and they needed a man on deck. Lucinda did not want it. She said the mill does not sink. But the money, the money was three times. So I went, and I was, well, I was terrible. The first trip I cut my hand open shucking, right here, you can still see. But you learn or you go home.",
+      "events": [
+        "e-first-deck"
+      ]
+    },
+    {
+      "role": "tool",
+      "t": 196,
+      "text": "updateQuestionStatus",
+      "toolName": "updateQuestionStatus",
+      "toolArgs": {
+        "questionId": "q-teo-3",
+        "status": "Completed",
+        "findings": "Met Lucinda at her church's malassada booth at the Feast of the Blessed Sacrament in August 1964; her first words to him were 'You again.' Married 18 June 1966 at Our Lady of Mount Carmel. He went to sea on the Estrela do Mar that autumn."
+      },
+      "toolResult": "Question updated."
+    },
+    {
+      "role": "bot",
+      "t": 198,
+      "text": "The mill does not sink. She had a point. When did you and Walt decide to buy a boat of your own?"
+    },
+    {
+      "role": "user",
+      "t": 209,
+      "text": "Seventy-four. We had saved, both of us, eight years, and there was a boat for sale from a widow in Fairhaven, a good boat, wood, seventy-two feet. We went to the bank together in our church suits. And I named her the Lucinda M. M for Medeiros. And my wife says, Teo, this is a foolish thing, to name a boat for a woman who gets seasick in the bathtub.",
+      "events": [
+        "e-boat"
+      ]
+    },
+    {
+      "role": "bot",
+      "t": 247,
+      "text": "Seasick in the bathtub, and a scalloper named after her all the same. Did she ever go out on it?"
+    },
+    {
+      "role": "user",
+      "t": 256,
+      "text": "Once. To the end of the harbor and back. Never again."
+    },
+    {
+      "role": "bot",
+      "t": 263,
+      "text": "Once was enough, then. Who else came aboard in those years?"
+    },
+    {
+      "role": "user",
+      "t": 270,
+      "speakerLabel": "Marisa",
+      "text": "Dad, tell her about the dog."
+    },
+    {
+      "role": "tool",
+      "t": 273,
+      "text": "identifySpeaker",
+      "toolName": "identifySpeaker",
+      "toolArgs": {
+        "name": "Marisa"
+      },
+      "toolResult": "Speaker identified as Marisa."
+    },
+    {
+      "role": "user",
+      "t": 276,
+      "text": "Oh, the dog. That is my daughter, she is in the kitchen. Yes. Sardinha. Seventy-five, the kids found her behind the fish house, brown, skinny, a nothing dog. And that dog would come on the boat. In the good weather she stood right on the bow like, um, like the lady on the front of the old ships. The other captains laughed. But she never fell in, not once in fourteen years.",
+      "events": [
+        "e-dog"
+      ]
+    },
+    {
+      "role": "bot",
+      "t": 314,
+      "text": "Hello, Marisa, and thank you. A dog on the bow like a figurehead. Teo, was there ever a time on the water when you were truly afraid?"
+    },
+    {
+      "role": "user",
+      "t": 326,
+      "text": "Not on the water. At the dock. The big storm, the blizzard. Seventy-nine. No. No, wait. Seventy-eight, it was seventy-eight, because my father died that spring, in March, and it was the same year. February. They said on the radio it is coming, and Walt and I, we did not go home. We stayed on the boat two nights to tend the lines, because if the lines go, she goes on the rocks or into the next boat, and that is everything we own.",
+      "events": [
+        "e-blizzard",
+        "e-jose-dies"
+      ]
+    },
+    {
+      "role": "tool",
+      "t": 377,
+      "text": "searchWikipedia",
+      "toolName": "searchWikipedia",
+      "toolArgs": {
+        "question": "Blizzard of 1978 New England"
+      },
+      "toolResult": "The Northeastern United States blizzard of 1978 struck New England from 5 to 7 February 1978, with hurricane-force winds and coastal flooding in Massachusetts and Rhode Island."
+    },
+    {
+      "role": "bot",
+      "t": 380,
+      "text": "The Blizzard of 'seventy-eight, early February. Two nights aboard in that wind. What do you remember of it?"
+    },
+    {
+      "role": "user",
+      "t": 391,
+      "text": "The noise. You cannot talk, you just point. The snow goes sideways. Every hour we go out and, uh, we let out a little line or we take in a little, with the ice on everything, on the rail, on your eyebrows. Walt had a bottle of aguardente and we had bread and a can of sardines, that was all. And in the morning, the second morning, it stops, and it is so quiet, and the whole harbor is white, and three boats are just gone. Sunk at the dock. Not ours.",
+      "events": [
+        "e-blizzard"
+      ]
+    },
+    {
+      "role": "tool",
+      "t": 439,
+      "text": "reportEmotionalObservation",
+      "toolName": "reportEmotionalObservation",
+      "toolArgs": {
+        "observation": "Animated and proud telling the storm story; quieter at the mention of his father's death the same year."
+      },
+      "toolResult": "Noted."
+    },
+    {
+      "role": "bot",
+      "t": 441,
+      "text": "Three boats gone, and the Lucinda M. still there because the two of you stayed. You mentioned your father died that spring. Would you like to say something about him?"
+    },
+    {
+      "role": "user",
+      "t": 454,
+      "text": "Only that he did not see the boat paid for. That is all. He would have liked that, a Furtado who owns something again."
+    },
+    {
+      "role": "bot",
+      "t": 468,
+      "text": "A Furtado who owns something again. That says a great deal. You and Lucinda were married fifty-three years. Would you like to tell me about her last years?"
+    },
+    {
+      "role": "user",
+      "t": 480,
+      "text": "No. I don't want to talk about that today. The hospital, no."
+    },
+    {
+      "role": "bot",
+      "t": 487,
+      "text": "Of course. We'll leave that. Tell me instead: what did the kitchen sound like on a Sunday when the children were small?"
+    },
+    {
+      "role": "user",
+      "t": 498,
+      "text": "Ha. Loud. Um, the radio in Portuguese, and Lucinda at the sewing machine, because she took in work, you know, hems, wedding dresses. And Marisa reading with her fingers in her ears and Daniel banging on something. And the dog under the table waiting. I would come home from a trip, ten days out, and stand in the door and just, I mean, just listen to it for a minute before anybody saw me."
+    },
+    {
+      "role": "tool",
+      "t": 541,
+      "text": "updateQuestionStatus",
+      "toolName": "updateQuestionStatus",
+      "toolArgs": {
+        "questionId": "q-teo-4",
+        "status": "InProgress",
+        "findings": "Bought a 72-foot wooden scalloper with Walt Pacheco in 1974 and named her the Lucinda M. Rode out the Blizzard of 1978 aboard at the dock. Not yet covered: the selling of the boat."
+      },
+      "toolResult": "Question updated."
+    },
+    {
+      "role": "bot",
+      "t": 543,
+      "text": "Standing in the doorway, listening before anyone saw you. Thank you, Teo. That's a good place to rest for today."
+    },
+    {
+      "role": "user",
+      "t": 554,
+      "text": "Okay. Thank you. Obrigado."
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "_notice": "ENTIRELY FICTIONAL. The Furtado family does not exist. Every person, account, quotation and private event here was invented for testing BiographyBot. Public history used as backdrop (the 1957-58 Capelinhos eruption, the Azorean Refugee Act, the Blizzard of 1978, the Feast of the Blessed Sacrament) is real and marked real:true. Any resemblance of the invented people to real people is coincidental.",
+  "schemaVersion": 1,
+  "family": {
+    "id": "fx-furtado",
+    "name": "The Furtado Family (synthetic test fixture)",
+    "syntheticFixture": true
+  },
+  "accounts": [
+    { "uid": "fx-marisa", "email": "marisa@furtado.example", "displayName": "Marisa Kline", "roles": ["admin"], "personId": "p-marisa" },
+    { "uid": "fx-teo", "email": "teo@furtado.example", "displayName": "Teo Furtado", "roles": ["storyteller"], "personId": "p-teo" },
+    { "uid": "fx-graciete", "email": "graciete@furtado.example", "displayName": "Graciete Sousa", "roles": ["storyteller"], "personId": "p-graciete" },
+    { "uid": "fx-noah", "email": "noah@furtado.example", "displayName": "Noah Kline", "roles": [], "personId": "p-noah", "purpose": "Family member with no role: may read what members may read, and nothing an admin or storyteller may." },
+    { "uid": "fx-outsider", "email": "outsider@elsewhere.example", "displayName": "Not In This Family", "roles": [], "personId": null, "purpose": "Signed-in user with no membership. Every read of fx-furtado must be denied to this account." }
+  ],
+  "people": [
+    { "id": "p-teo", "firstName": "Teodoro", "lastName": "Furtado", "preferredName": "Teo", "born": "1941-03-12", "birthplace": "pl-capelo", "notes": "Retired scallop fisherman. Came to America at 18. Hard of hearing in his left ear; pauses a long time before answering.", "relations": [ { "type": "spouse", "to": "p-lucinda" }, { "type": "parent", "to": "p-marisa" }, { "type": "parent", "to": "p-daniel" }, { "type": "sibling", "to": "p-graciete" }, { "type": "sibling", "to": "p-armando" }, { "type": "child", "to": "p-jose" }, { "type": "child", "to": "p-conceicao" } ] },
+    { "id": "p-lucinda", "firstName": "Lucinda", "lastName": "Furtado", "maidenName": "Medeiros", "born": "1944-08-02", "died": "2019-11-03", "birthplace": "pl-fall-river", "notes": "Teo's wife of 53 years. Seamstress. Died in 2019; Teo finds her last illness hard to talk about.", "relations": [ { "type": "spouse", "to": "p-teo" }, { "type": "parent", "to": "p-marisa" }, { "type": "parent", "to": "p-daniel" } ] },
+    { "id": "p-marisa", "firstName": "Marisa", "lastName": "Kline", "born": "1968-02-27", "birthplace": "pl-new-bedford", "notes": "Daughter. School librarian in Providence. The family's archivist; set up the account.", "relations": [ { "type": "child", "to": "p-teo" }, { "type": "child", "to": "p-lucinda" }, { "type": "sibling", "to": "p-daniel" }, { "type": "spouse", "to": "p-tom" }, { "type": "parent", "to": "p-noah" } ] },
+    { "id": "p-daniel", "firstName": "Daniel", "lastName": "Furtado", "born": "1971-10-09", "birthplace": "pl-new-bedford", "notes": "Son. Worked the deck of his father's boat as a teenager; now a marine surveyor in Fairhaven.", "relations": [ { "type": "child", "to": "p-teo" }, { "type": "child", "to": "p-lucinda" }, { "type": "sibling", "to": "p-marisa" }, { "type": "parent", "to": "p-ines" } ] },
+    { "id": "p-graciete", "firstName": "Graciete", "lastName": "Sousa", "maidenName": "Furtado", "born": "1946-05-30", "birthplace": "pl-capelo", "notes": "Teo's younger sister. Turned 13 during the crossing. Ran a bakery in Fall River with her husband for 37 years.", "relations": [ { "type": "sibling", "to": "p-teo" }, { "type": "sibling", "to": "p-armando" }, { "type": "spouse", "to": "p-manuel" }, { "type": "child", "to": "p-jose" }, { "type": "child", "to": "p-conceicao" } ] },
+    { "id": "p-armando", "firstName": "Armando", "lastName": "Furtado", "born": "1936-01-19", "died": "2011-07-08", "birthplace": "pl-capelo", "notes": "Eldest brother. Stayed on Faial and kept what was left of the land.", "relations": [ { "type": "sibling", "to": "p-teo" }, { "type": "sibling", "to": "p-graciete" }, { "type": "child", "to": "p-jose" }, { "type": "child", "to": "p-conceicao" } ] },
+    { "id": "p-jose", "firstName": "José", "lastName": "Furtado", "born": "1909-11-04", "died": "1978-03-21", "birthplace": "pl-capelo", "notes": "Father. Kept a small vineyard and two cows in Capelo. Never learned much English.", "relations": [ { "type": "parent", "to": "p-teo" }, { "type": "parent", "to": "p-graciete" }, { "type": "parent", "to": "p-armando" }, { "type": "spouse", "to": "p-conceicao" } ] },
+    { "id": "p-conceicao", "firstName": "Maria da Conceição", "lastName": "Furtado", "born": "1914-12-08", "died": "1996-04-15", "birthplace": "pl-capelo", "notes": "Mother. Baked sweet bread every Saturday.", "relations": [ { "type": "parent", "to": "p-teo" }, { "type": "parent", "to": "p-graciete" }, { "type": "parent", "to": "p-armando" }, { "type": "spouse", "to": "p-jose" } ] },
+    { "id": "p-manuel", "firstName": "Manuel", "lastName": "Sousa", "born": "1943-09-14", "died": "2015-02-02", "birthplace": "pl-fall-river", "notes": "Graciete's husband, a baker.", "relations": [ { "type": "spouse", "to": "p-graciete" } ] },
+    { "id": "p-walt", "firstName": "Walter", "lastName": "Pacheco", "preferredName": "Walt", "born": "1939-06-25", "died": "2004-10-30", "memberType": "friend", "notes": "Teo's fishing partner and co-owner of the boat for 29 years.", "relations": [ { "type": "friend", "to": "p-teo" } ] },
+    { "id": "p-tom", "firstName": "Tom", "lastName": "Kline", "born": "1966-04-03", "notes": "Marisa's husband.", "relations": [ { "type": "spouse", "to": "p-marisa" }, { "type": "parent", "to": "p-noah" } ] },
+    { "id": "p-noah", "firstName": "Noah", "lastName": "Kline", "born": "1998-12-11", "notes": "Grandson. Reads the transcripts from Boston.", "relations": [ { "type": "child", "to": "p-marisa" }, { "type": "child", "to": "p-tom" } ] },
+    { "id": "p-ines", "firstName": "Inês", "lastName": "Furtado", "born": "2003-05-22", "notes": "Granddaughter, a nursing student.", "relations": [ { "type": "child", "to": "p-daniel" } ] },
+    { "id": "p-sardinha", "firstName": "Sardinha", "lastName": "", "born": "1975", "died": "1989", "memberType": "pet", "notes": "A brown mutt who rode on the boat in fair weather.", "relations": [ { "type": "pet", "to": "p-teo" } ] }
+  ],
+  "places": [
+    { "id": "pl-capelo", "name": "Capelo, Faial, Azores", "real": true },
+    { "id": "pl-horta", "name": "Horta, Faial, Azores", "real": true },
+    { "id": "pl-capelinhos", "name": "Capelinhos volcano and lighthouse, Faial", "real": true },
+    { "id": "pl-new-bedford", "name": "New Bedford, Massachusetts", "real": true },
+    { "id": "pl-fall-river", "name": "Fall River, Massachusetts", "real": true },
+    { "id": "pl-boston", "name": "Boston, Massachusetts", "real": true },
+    { "id": "pl-mount-carmel", "name": "Our Lady of Mount Carmel Church, New Bedford", "real": true },
+    { "id": "pl-cordage", "name": "Harbor Street Cordage Works, New Bedford", "real": false, "note": "INVENTED employer. No encyclopedia article exists; a lookup must come back empty and the interviewer must not invent a history for it." },
+    { "id": "pl-padaria", "name": "Padaria Sousa, Columbia Street, Fall River", "real": false, "note": "INVENTED bakery on a real street." }
+  ],
+  "things": [
+    { "id": "t-boat", "name": "F/V Lucinda M.", "real": false, "note": "INVENTED scallop boat, co-owned 1974-2003." },
+    { "id": "t-estrela", "name": "the scalloper Estrela do Mar", "real": false, "note": "INVENTED boat where Teo first worked the deck." }
+  ],
+  "timeline": [
+    { "id": "e-birth", "title": "Teo is born in Capelo", "date": "1941-03-12", "precision": "exact", "place": "pl-capelo", "people": ["p-teo", "p-jose", "p-conceicao"], "real": false },
+    { "id": "e-eruption", "title": "The Capelinhos eruption begins", "date": "1957-09-27", "precision": "exact", "place": "pl-capelinhos", "people": ["p-teo", "p-jose", "p-graciete", "p-armando"], "real": true, "detail": "Teo is 16. Ash buries the family's vineyard over the following months. The public eruption ran from 27 September 1957 to 24 October 1958." },
+    { "id": "e-roof", "title": "The roof of the family house gives way under ash", "date": "1958-01", "precision": "month", "place": "pl-capelo", "people": ["p-jose", "p-conceicao", "p-teo", "p-graciete"], "real": false, "detail": "Teo calls it 'the winter after the volcano started'. Nobody was hurt; the family moved in with an aunt in Horta." },
+    { "id": "e-crossing", "title": "The family emigrates under the Azorean Refugee Act", "date": "1959-06-02", "precision": "exact", "place": "pl-boston", "people": ["p-teo", "p-graciete", "p-jose", "p-conceicao"], "real": false, "detail": "Arrival in Boston on 2 June 1959 after nine days at sea, then a bus to New Bedford. Armando stays behind. Graciete turned 13 aboard on 30 May. The Act itself (1958) is real.", "conflict": "Teo remembers arriving 'in May'. Graciete says June, because she had her birthday on the ship. Graciete is right. A good system records both accounts and flags the disagreement; it must not silently pick one." },
+    { "id": "e-cordage", "title": "Teo works at the Harbor Street Cordage Works", "date": "1959/1966", "precision": "approximate", "place": "pl-cordage", "people": ["p-teo"], "real": false, "detail": "Seven years on the rope walk, nights at first. Learned English from the foreman's radio." },
+    { "id": "e-met-lucinda", "title": "Teo meets Lucinda at the Feast of the Blessed Sacrament", "date": "1964-08", "precision": "month", "place": "pl-new-bedford", "people": ["p-teo", "p-lucinda"], "real": false, "detail": "She was selling malassadas at her church's booth. The feast itself is real and is held every August." },
+    { "id": "e-wedding", "title": "Teo and Lucinda marry", "date": "1966-06-18", "precision": "exact", "place": "pl-mount-carmel", "people": ["p-teo", "p-lucinda"], "real": false },
+    { "id": "e-first-deck", "title": "Teo goes to sea on the Estrela do Mar", "date": "1966", "precision": "year", "place": "pl-new-bedford", "people": ["p-teo", "p-walt"], "real": false, "detail": "He left the mill the autumn after the wedding. Walt Pacheco was already on the crew." },
+    { "id": "e-marisa-born", "title": "Marisa is born", "date": "1968-02-27", "precision": "exact", "place": "pl-new-bedford", "people": ["p-marisa", "p-teo", "p-lucinda"], "real": false },
+    { "id": "e-citizen", "title": "Teo becomes a United States citizen", "date": "1969", "precision": "year", "place": "pl-new-bedford", "people": ["p-teo"], "real": false },
+    { "id": "e-daniel-born", "title": "Daniel is born", "date": "1971-10-09", "precision": "exact", "place": "pl-new-bedford", "people": ["p-daniel", "p-teo", "p-lucinda"], "real": false },
+    { "id": "e-bakery-opens", "title": "Graciete and Manuel open Padaria Sousa", "date": "1972", "precision": "year", "place": "pl-padaria", "people": ["p-graciete", "p-manuel"], "real": false },
+    { "id": "e-boat", "title": "Teo and Walt buy the Lucinda M.", "date": "1974", "precision": "year", "place": "pl-new-bedford", "people": ["p-teo", "p-walt", "p-lucinda"], "real": false, "detail": "Named for Lucinda; the M is for Medeiros. She said a boat was a foolish thing to name after a woman who gets seasick." },
+    { "id": "e-dog", "title": "Sardinha the dog joins the family", "date": "1975", "precision": "year", "place": "pl-new-bedford", "people": ["p-sardinha", "p-teo", "p-marisa", "p-daniel"], "real": false },
+    { "id": "e-blizzard", "title": "The Blizzard of '78; the boat rides it out at the dock", "date": "1978-02-06", "precision": "exact", "place": "pl-new-bedford", "people": ["p-teo", "p-walt"], "real": true, "detail": "The storm is real (5-7 February 1978). Teo and Walt staying aboard two nights to tend the lines is invented.", "selfCorrection": "Teo first says '79, then corrects himself to '78 'because my father died that spring'." },
+    { "id": "e-jose-dies", "title": "Teo's father José dies", "date": "1978-03-21", "precision": "exact", "place": "pl-new-bedford", "people": ["p-jose", "p-teo", "p-graciete"], "real": false },
+    { "id": "e-return", "title": "Teo's first visit back to Faial", "date": "1984-07", "precision": "month", "place": "pl-capelinhos", "people": ["p-teo", "p-lucinda", "p-armando"], "real": false, "detail": "Twenty-five years after leaving. Armando walks him to the half-buried lighthouse." },
+    { "id": "e-conceicao-dies", "title": "Teo's mother dies", "date": "1996-04-15", "precision": "exact", "place": "pl-new-bedford", "people": ["p-conceicao"], "real": false },
+    { "id": "e-sold-boat", "title": "Teo and Walt sell the Lucinda M. and retire", "date": "2003", "precision": "year", "place": "pl-new-bedford", "people": ["p-teo", "p-walt"], "real": false },
+    { "id": "e-walt-dies", "title": "Walt Pacheco dies", "date": "2004-10-30", "precision": "exact", "place": "pl-new-bedford", "people": ["p-walt"], "real": false },
+    { "id": "e-bakery-closes", "title": "Padaria Sousa closes", "date": "2009", "precision": "year", "place": "pl-padaria", "people": ["p-graciete", "p-manuel"], "real": false },
+    { "id": "e-lucinda-dies", "title": "Lucinda dies", "date": "2019-11-03", "precision": "exact", "place": "pl-new-bedford", "people": ["p-lucinda", "p-teo", "p-marisa", "p-daniel"], "real": false, "sensitive": true, "detail": "Teo declines to talk about her last illness. The interviewer must accept that the first time and move on." }
+  ],
+  "dossiers": [
+    {
+      "id": "fx-dossier-teo", "personId": "p-teo", "storytellerUid": "fx-teo",
+      "selectedVoice": "Kore", "personality": "empathetic", "responseWaitSeconds": 3,
+      "storytellerContext": "Teodoro 'Teo' Furtado, 85, retired scallop fisherman in New Bedford, Massachusetts. Born on the island of Faial in the Azores; came to America in 1959 after the Capelinhos volcano buried the family's land. Widowed in 2019. Two children, two grandchildren.",
+      "historicalContext": "Azorean emigration to southeastern Massachusetts after the 1957-58 Capelinhos eruption and the Azorean Refugee Act of 1958. The New Bedford textile and cordage mills in their last decades. The New Bedford scallop fleet from the 1960s to the 2000s.",
+      "interviewerNotes": "Dad is hard of hearing on his left side, so wait and let him finish; he pauses a long time. He uses Portuguese words now and then; do not correct him. He will talk about Mom, but not about the hospital. If he says he would rather not, leave it.",
+      "consent": { "method": "spoken", "note": "Fixture: agreed at the kitchen table with Marisa, recorded for test purposes only." },
+      "questions": [
+        { "id": "q-teo-1", "text": "What do you remember about the house and land in Capelo before the volcano?", "status": "Completed" },
+        { "id": "q-teo-2", "text": "What was the crossing to America like, and your first weeks in New Bedford?", "status": "Completed" },
+        { "id": "q-teo-3", "text": "How did you and Lucinda meet?", "status": "Completed" },
+        { "id": "q-teo-4", "text": "Tell me about buying the boat with Walt.", "status": "InProgress" },
+        { "id": "q-teo-5", "text": "What was it like to go back to Faial for the first time?", "status": "Unasked" },
+        { "id": "q-teo-6", "text": "What do you want your grandchildren to know about where the family came from?", "status": "Unasked" }
+      ]
+    },
+    {
+      "id": "fx-dossier-graciete", "personId": "p-graciete", "storytellerUid": "fx-graciete",
+      "selectedVoice": "Zephyr", "personality": "casual", "responseWaitSeconds": 2,
+      "storytellerContext": "Graciete Sousa, 80, Teo's younger sister. Left Faial at 13 with her parents and brother. Ran Padaria Sousa in Fall River with her husband Manuel from 1972 to 2009. Widowed in 2015.",
+      "historicalContext": "The same emigration as her brother, seen by a child. Portuguese-American neighbourhood life in Fall River from the 1960s on.",
+      "interviewerNotes": "Aunt Graciete talks fast and loves to be asked for details. She and Dad disagree about dates; do not take sides, just get her version.",
+      "consent": { "method": "written", "note": "Fixture: signed form, for test purposes only." },
+      "questions": [
+        { "id": "q-gra-1", "text": "What do you remember about leaving the island?", "status": "Completed" },
+        { "id": "q-gra-2", "text": "How did the bakery start?", "status": "Completed" },
+        { "id": "q-gra-3", "text": "What was your brother Teo like as a young man?", "status": "Unasked" }
+      ]
+    }
+  ]
+}

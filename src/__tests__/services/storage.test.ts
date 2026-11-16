@@ -181,7 +181,7 @@ describe('updateQuestionStateInFirestore', () => {
 describe('saveFamilyEvents', () => {
   const baseEvent = {
     familyId: 'family-1',
-    title: 'Marriage of Ralph and Margaret',
+    title: 'Marriage of Walter and Margaret',
     date: 'June 15, 1952',
     description: 'They married in a small ceremony in Ohio.',
     storytellerUids: ['storyteller-uid'] as string[],
@@ -207,7 +207,7 @@ describe('saveFamilyEvents', () => {
     await saveFamilyEvents('family-1', [baseEvent]);
 
     const data = mockFirestore.addDoc.mock.calls[0][1];
-    expect(data.title).toBe('Marriage of Ralph and Margaret');
+    expect(data.title).toBe('Marriage of Walter and Margaret');
     expect(data.description).toBe('They married in a small ceremony in Ohio.');
     expect(data.storytellerUids).toEqual(['storyteller-uid']);
     expect(data.sessionIds).toEqual(['session-1']);

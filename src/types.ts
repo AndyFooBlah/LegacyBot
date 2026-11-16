@@ -352,7 +352,7 @@ export interface SessionEngagement {
 export interface FamilyEvent {
   id?: string; // Firestore document ID
   familyId: string;
-  title: string; // e.g., "Marriage of Ralph and Margaret"
+  title: string; // e.g., "Marriage of Walter and Margaret"
   date?: string; // flexible format: "June 15, 1952" or "Summer 1952"
   description: string;
   storytellerUids: string[]; // storytellers who mentioned this event

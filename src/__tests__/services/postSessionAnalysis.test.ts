@@ -127,7 +127,7 @@ describe('computeEngagementMetrics', () => {
     // user: 9 words across 2 entries, bot: 3 words → ratio = 9/12 = 0.75
     const entries = [
       makeEntry('bot', 'And then?'),                               // 2 words
-      makeEntry('user', 'We moved to Columbus when I was ten.'),   // 8 words
+      makeEntry('user', 'We moved to Fairhaven when I was ten.'),   // 8 words
       makeEntry('bot', 'Interesting.'),                            // 1 word
       makeEntry('user', 'Yes indeed.'),                            // 2 words
     ];
@@ -172,7 +172,7 @@ describe('extractEvents', () => {
       description: 'Margaret started school in the fall of 1952.',
       date: '1952',
       datePrecision: 'year',
-      location: 'Columbus, Ohio',
+      location: 'Fairhaven, Massachusetts',
       themes: ['childhood', 'education'],
       people: ['Arthur'],
     };
@@ -185,7 +185,7 @@ describe('extractEvents', () => {
     expect(results[0].description).toBe('Margaret started school in the fall of 1952.');
     expect(results[0].date).toBe('1952');
     expect(results[0].datePrecision).toBe('year');
-    expect(results[0].location).toBe('Columbus, Ohio');
+    expect(results[0].location).toBe('Fairhaven, Massachusetts');
     expect(results[0].themes).toEqual(['childhood', 'education']);
     expect(results[0].people).toEqual(['Arthur']);
   });

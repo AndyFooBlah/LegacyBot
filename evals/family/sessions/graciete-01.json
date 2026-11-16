@@ -1,0 +1,36 @@
+{
+  "id": "fx-session-graciete-01",
+  "dossierId": "fx-dossier-graciete",
+  "title": "Leaving the island, by a girl of twelve",
+  "startTime": "2026-03-12T18:30:00Z",
+  "durationSeconds": 438,
+  "expect": {
+    "events": ["e-eruption", "e-crossing"],
+    "conflicts": [{ "event": "e-crossing", "field": "date", "thisAccount": "June 1959, birthday on the ship", "otherAccountIn": "fx-session-teo-02", "truth": "1959-06-02" }],
+    "notes": "The same crossing as fx-session-teo-02, told by the younger sister. She is right about the month. Both versions must survive into the family record."
+  },
+  "entries": [
+    { "role": "bot", "t": 0, "text": "Hi, Graciete! Thanks for sitting down with me. Your niece Marisa says you remember everything. Can I start with the day you left the island?" },
+    { "role": "user", "t": 11, "text": "Everything, she says. Well, I remember more than my brother, I can tell you that, because he was busy being seasick and I was busy looking. So ask me." },
+    { "role": "bot", "t": 25, "text": "I will! How old were you, and what did you understand about why you were going?" },
+    { "role": "user", "t": 33, "text": "Twelve. I was twelve when we left and thirteen when we got there, I'll tell you why in a minute. What I understood, um, I understood that the volcano ate our house. That's how I said it. The mountain came up out of the sea and it ate our house and now we are going to America where my father's cousin has a car. I thought the car was the important part.", "events": ["e-eruption", "e-crossing"] },
+    { "role": "bot", "t": 68, "text": "The volcano ate our house, and the cousin has a car. That's a twelve-year-old's summary, all right. What do you remember about the dock?" },
+    { "role": "user", "t": 79, "text": "My mother and Armando. He was the oldest, he stayed, and she wouldn't let go of him. And I remember being embarrassed! Can you imagine? Twelve years old, I'm thinking, Mamãe, everybody is looking. I'd give anything now to, well. You know. You don't know what you're seeing when you're seeing it.", "events": ["e-crossing"] },
+    { "role": "tool", "t": 111, "text": "reportEmotionalObservation", "toolName": "reportEmotionalObservation", "toolArgs": { "observation": "Brief catch in her voice about her mother and Armando on the dock; recovered quickly, still eager." }, "toolResult": "Noted." },
+    { "role": "bot", "t": 113, "text": "You don't know what you're seeing when you're seeing it. That's true of so much. Tell me about the ship." },
+    { "role": "user", "t": 123, "text": "Oh, the ship was wonderful. Nine days. Teo will tell you it was terrible, he was green the whole time, lying in the bunk like a dead fish. But I had the run of it. There was a lady from São Miguel who taught me to play cards for buttons. And here's the thing, I had my birthday on that ship. May thirtieth. I turned thirteen in the middle of the ocean, and the cook, I don't know how he knew, somebody told him, he made me a little cake with one candle.", "events": ["e-crossing"] },
+    { "role": "tool", "t": 168, "text": "recordFact", "toolName": "recordFact", "toolArgs": { "fact": "Graciete turned 13 aboard the ship on 30 May 1959; the cook made her a cake with one candle." }, "toolResult": "Fact recorded." },
+    { "role": "bot", "t": 170, "text": "A birthday cake with one candle in the middle of the Atlantic. So you'd have arrived a few days after that?" },
+    { "role": "user", "t": 180, "text": "June. The beginning of June, the second or the third. My brother says May, he always says May, and I say, Teo, I had my birthday on the boat, how could it be May? And he says it was raining. Well, it can rain in June! Sixty years we've had this argument.", "events": ["e-crossing"] },
+    { "role": "bot", "t": 207, "text": "Sixty years of the same argument. I'll make sure your version is written down just as you told it. What was your first impression of America?" },
+    { "role": "user", "t": 219, "text": "The cousin's car. A green Chevrolet. I'd been waiting nine days for that car. And then we get to New Bedford and he parks it and we walk everywhere after that, because he lived two streets from everything." },
+    { "role": "bot", "t": 240, "text": "All that waiting for a car you hardly rode in! And school? You'd have gone straight into an American classroom." },
+    { "role": "user", "t": 250, "text": "September. They put me with the little ones, the eight-year-olds, because I had no English. Thirteen, and my knees didn't fit under the desk. I cried every day for a month, I'm not ashamed. And then there was a teacher, Miss Abbott, she kept me after and we did the, um, the picture books, one word at a time. By Christmas I was with the ten-year-olds, and by the next year I was where I belonged. Faster than Teo, and he had that radio." },
+    { "role": "bot", "t": 291, "text": "From the eight-year-olds' desks to your own class in a year. Miss Abbott sounds like she mattered a great deal." },
+    { "role": "user", "t": 301, "text": "She came to my wedding." },
+    { "role": "tool", "t": 307, "text": "updateQuestionStatus", "toolName": "updateQuestionStatus", "toolArgs": { "questionId": "q-gra-1", "status": "Completed", "findings": "Left Faial aged 12 with her parents and brother Teo; Armando stayed. Turned 13 aboard on 30 May 1959 and is certain they landed in early June, which she knows her brother disputes. Started school in New Bedford that September." }, "toolResult": "Question updated." },
+    { "role": "bot", "t": 309, "text": "She came to your wedding. That's the best ending that story could have. Shall we stop there for today, or do you have a little more in you?" },
+    { "role": "user", "t": 320, "text": "I always have more in me, dear. But my program is on. Next time I'll tell you about the bakery." },
+    { "role": "bot", "t": 331, "text": "I'd love that. Enjoy your program, Graciete." }
+  ]
+}

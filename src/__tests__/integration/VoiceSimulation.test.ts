@@ -24,10 +24,10 @@ import { VoiceSimulator } from '@andyfooblah/voice-common/testing';
 describe('LegacyBot Voice Simulation Integration', () => {
   // Mock the VoiceSimulator for this skeleton implementation
   // In a real environment, this would hit the actual Gemini Live WebSocket.
-  it('should conduct a 3-turn interview with Ralph the Sailor', async () => {
+  it('should conduct a 3-turn interview with Walter the Sailor', async () => {
     const sim = new VoiceSimulator({
       apiKey: 'MOCK_API_KEY',
-      persona: 'Ralph, a retired sailor who loves talking about his 1992 storm story.'
+      persona: 'Walter, a retired sailor who loves talking about his 1992 storm story.'
     });
 
     // In a real test, we would obtain a token from the LegacyBot broker
@@ -36,7 +36,7 @@ describe('LegacyBot Voice Simulation Integration', () => {
     // For now, we mock the result to demonstrate the integration pattern
     const mockResult = {
       transcript: [
-        { role: 'bot', text: 'Hello Ralph, it is good to see you again. What would you like to talk about today?' },
+        { role: 'bot', text: 'Hello Walter, it is good to see you again. What would you like to talk about today?' },
         { role: 'user', text: 'I want to tell you about that big storm in 1992.' },
         { role: 'bot', text: 'The storm of 92! That sounds intense. Where were you when it hit?' },
         { role: 'user', text: 'I was out on my boat, the Sea Star, just off the coast of Maine.' },
@@ -54,7 +54,7 @@ describe('LegacyBot Voice Simulation Integration', () => {
     const result = await sim.simulate('wss://mock-endpoint', 'mock-token');
 
     expect(result.transcript.length).toBe(6);
-    expect(result.transcript[0].text).toContain('Hello Ralph');
+    expect(result.transcript[0].text).toContain('Hello Walter');
     expect(result.transcript[1].text).toContain('1992');
     expect(result.avgLatencyMs).toBeLessThan(2000);
   });

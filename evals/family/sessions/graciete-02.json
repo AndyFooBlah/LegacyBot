@@ -1,0 +1,30 @@
+{
+  "id": "fx-session-graciete-02",
+  "dossierId": "fx-dossier-graciete",
+  "title": "Thirty-seven years of bread",
+  "startTime": "2026-03-19T18:32:00Z",
+  "durationSeconds": 371,
+  "expect": {
+    "events": ["e-bakery-opens", "e-bakery-closes"],
+    "crossDossier": "She describes her brother Teo here. Nothing from this session may surface in Teo's dossier views for a storyteller-role user, and searchContext scoped to Teo's dossier must not return it.",
+    "notes": "Second storyteller's own material, plus an outside view of the first storyteller."
+  },
+  "entries": [
+    { "role": "bot", "t": 0, "text": "Hello again, Graciete. You promised me the bakery. How did it start?" },
+    { "role": "user", "t": 8, "text": "It started because Manuel couldn't work for anybody. That's the truth. He was a baker at a big place, a good baker, and every six months he'd come home and say, that man is an idiot, I quit. So in seventy-two I said, fine, be your own idiot. We took a little shop on Columbia Street with an oven older than me, and we put the name on the window. Padaria Sousa.", "events": ["e-bakery-opens"] },
+    { "role": "bot", "t": 42, "text": "Be your own idiot! And did he turn out to be a good boss to himself?" },
+    { "role": "user", "t": 51, "text": "Terrible. He gave bread away. Somebody comes in short a dime, take it, take it. I did the money or we'd have closed in a year." },
+    { "role": "bot", "t": 66, "text": "So he baked and you kept it alive. What were the hours like?" },
+    { "role": "user", "t": 74, "text": "Two in the morning. Two! Thirty-seven years I got up at two in the morning, and now I can't sleep past four, it's ruined me. Manuel on the ovens, me on the sweet bread, the massa sovada, because that was my mother's, that was her recipe from Capelo and I wouldn't let him touch it. You have to listen to that dough. He never had the patience. By six the line was out the door, the mill ladies before the shift, everybody wants the papo-secos, the little rolls, still hot." },
+    { "role": "tool", "t": 121, "text": "recordFact", "toolName": "recordFact", "toolArgs": { "fact": "Padaria Sousa opened on Columbia Street, Fall River, in 1972. Graciete made the massa sovada from her mother's recipe." }, "toolResult": "Fact recorded." },
+    { "role": "bot", "t": 123, "text": "Your mother's recipe from Capelo, carried all the way to Columbia Street. Did your brother Teo come by the shop?" },
+    { "role": "user", "t": 133, "text": "When he was in from a trip, yes, smelling like the whole ocean. He'd take two loaves and try to pay and I'd say, get out. Um, he was always late, my brother. Late to everything, late to his own wedding by twenty minutes because Walt's truck wouldn't start. But he never once missed bringing my mother her fish on a Friday. So. That's Teo. Late, but he comes." },
+    { "role": "bot", "t": 165, "text": "Late, but he comes. That's a lovely way to put it. When did you decide to close?" },
+    { "role": "user", "t": 174, "text": "Two thousand nine. Manuel's hands. The arthritis, he couldn't shape the loaves anymore, and our kids had their own lives, a nurse and an accountant, nobody wants to get up at two. We sold the oven for scrap. I kept the paddle, the long one. It's in my hall closet right now.", "events": ["e-bakery-closes"] },
+    { "role": "tool", "t": 206, "text": "updateQuestionStatus", "toolName": "updateQuestionStatus", "toolArgs": { "questionId": "q-gra-2", "status": "Completed", "findings": "Opened Padaria Sousa on Columbia Street in 1972 after Manuel quit one job too many. She kept the books and made her mother's massa sovada. Closed in 2009 when arthritis stopped Manuel shaping loaves." }, "toolResult": "Question updated." },
+    { "role": "bot", "t": 208, "text": "The paddle in the hall closet. Do you still bake?" },
+    { "role": "user", "t": 215, "text": "Easter. Only at Easter, the sweet bread with the egg in it, for the grandchildren. And every year I think, this is the last year. And every year I'm up at two." },
+    { "role": "bot", "t": 232, "text": "Up at two, every Easter. Thank you, Graciete. I could listen to you all day." },
+    { "role": "user", "t": 241, "text": "Everybody says that, and then they leave. Go on. Next week." }
+  ]
+}

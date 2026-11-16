@@ -1,0 +1,22 @@
+{
+  "id": "fx-session-teo-04",
+  "dossierId": "fx-dossier-teo",
+  "title": "A short one on a tired day",
+  "startTime": "2026-03-24T15:04:00Z",
+  "durationSeconds": 96,
+  "expect": {
+    "events": [],
+    "engagementFlags": ["short_responses"],
+    "notes": "Most real sessions are short. This one checks that a brief, low-energy session produces no invented events, an engagement assessment that says so, and an interviewer who lets the storyteller go. It is also the session with a full recording (audio/teo-04.webm)."
+  },
+  "entries": [
+    { "role": "bot", "t": 0, "text": "Hello, Teo. It's good to hear you again. Last time we stopped with the kitchen on a Sunday. Would you like to tell me about selling the boat?" },
+    { "role": "user", "t": 12, "text": "Not today, I think." },
+    { "role": "bot", "t": 18, "text": "That's all right. Is there something else on your mind, or would you rather rest?" },
+    { "role": "user", "t": 27, "text": "I did not sleep so good. My knee." },
+    { "role": "bot", "t": 34, "text": "I'm sorry about your knee. We can stop whenever you like. Is there one small thing you'd enjoy remembering, just for a minute?" },
+    { "role": "user", "t": 46, "text": "Um. The coffee on the boat. Walt made it so strong you could, uh, you could stand the spoon in it. That is all. I am going to lie down now." },
+    { "role": "tool", "t": 62, "text": "reportEmotionalObservation", "toolName": "reportEmotionalObservation", "toolArgs": { "observation": "Tired and in some discomfort; short answers; ended the session himself." }, "toolResult": "Noted." },
+    { "role": "bot", "t": 64, "text": "Coffee you could stand a spoon in. Thank you, Teo. Rest that knee, and we'll talk another day." }
+  ]
+}

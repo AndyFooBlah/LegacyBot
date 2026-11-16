@@ -1,0 +1,34 @@
+{
+  "id": "fx-session-teo-05",
+  "dossierId": "fx-dossier-teo",
+  "title": "Selling the boat (a rambling day)",
+  "startTime": "2026-03-31T15:03:00Z",
+  "durationSeconds": 548,
+  "expect": {
+    "events": ["e-sold-boat", "e-walt-dies"],
+    "notes": "Written in the texture of real speech-to-text: false starts, repeated words, heavy filler, two very long turns and several very short ones. The facts are few and buried; extraction must find them without inventing others. cleanText and transcript refinement have real work to do here."
+  },
+  "entries": [
+    { "role": "bot", "t": 0, "text": "Hello, Teo. I hope the knee is better. Last time you didn't feel like talking about selling the boat. Would today be a better day for that, or shall we talk about something else?" },
+    { "role": "user", "t": 13, "text": "Uh, yeah. Yeah, okay. Today is okay." },
+    { "role": "bot", "t": 19, "text": "Thank you. Take all the time you need. How did you and Walt come to the decision?" },
+    { "role": "user", "t": 27, "text": "Well, um, it was, uh, it was not one day, you know, it was, I mean, it was a lot of days. It was, um, the, the knees first, uh, my knees and his back, Walt's back, he had the, um, the disc, you know, the disc in the back, and he, he could not, uh, he could not lift the, the baskets no more, the scallop baskets, and I mean we had the crew, we had, uh, we had young guys, good guys, but you know a captain who cannot, um, who cannot lift a basket, uh, the crew sees that. They see that. And, uh, and also the, the rules, the government, um, every year more rules, the days, you know, they count your days at sea now, you get so many days and, uh, and that is it, and the permits, and, well, the price of the fuel, I mean, uh, let me think, this was two thousand, uh, two thousand two, two thousand three. Three. It was two thousand three we sold. And we, um, we sat in the, in the wheelhouse, tied up, not even out, just tied up at the dock, with the coffee, and Walt says to me, uh, he says, Teo, I think, I think we are the old men now. And I, you know, I did not say nothing. Because, um, because he was right.", "events": ["e-sold-boat"] },
+    { "role": "bot", "t": 131, "text": "We are the old men now. That's a hard sentence to hear from a friend. Who bought her?" },
+    { "role": "user", "t": 140, "text": "A company. Uh, not a man. A company." },
+    { "role": "bot", "t": 147, "text": "A company rather than a fisherman. How did that sit with you?" },
+    { "role": "user", "t": 155, "text": "Bad. Um. Bad." },
+    { "role": "bot", "t": 161, "text": "I understand. What was the last day like, handing her over?" },
+    { "role": "user", "t": 169, "text": "Uh, so, the last day, um, we, we cleaned her. You know, we did not have to, the, the company, they don't care, they are going to, uh, to paint everything anyway, but we, I mean, Walt and me, we cleaned her top to bottom, the, the galley, the, um, the bunks, the engine room, everything, like, like you wash somebody for the, uh, well. Like that. And I took the, um, the little Saint, the, the statue from the wheelhouse, the Senhor Santo Cristo, uh, my mother gave me that in seventy-four when we bought her, and, and the bell, I took the bell, Daniel has the bell now, it is in his, uh, in his garage in Fairhaven. And Walt took the, the wheel, no, not the wheel, um, what do you call, the compass, the old compass, the brass one. And then we, uh, we stood on the dock and the guy from the company, a young guy with the, with the papers on a clipboard, he says, okay gentlemen, that's it, and, and he shakes the hand, and, um, and we, you know, we went to the, to the diner. And we did not talk. We ate the, uh, the eggs. Twenty-nine years that boat. Twenty-nine years and you eat the eggs and you go home.", "events": ["e-sold-boat"] },
+    { "role": "tool", "t": 284, "text": "reportEmotionalObservation", "toolName": "reportEmotionalObservation", "toolArgs": { "observation": "Halting and visibly moved describing the last day aboard; wanted to continue." }, "toolResult": "Noted." },
+    { "role": "tool", "t": 286, "text": "recordFact", "toolName": "recordFact", "toolArgs": { "fact": "Teo and Walt sold the Lucinda M. to a company in 2003 after 29 years. Teo kept the wheelhouse statue and the ship's bell; the bell is now with his son Daniel." }, "toolResult": "Fact recorded." },
+    { "role": "bot", "t": 288, "text": "Twenty-nine years, and then eggs at the diner without a word. Thank you for telling me, Teo. You kept the statue and the bell. Where is the statue now?" },
+    { "role": "user", "t": 301, "text": "Right there. Uh, on the, on the television." },
+    { "role": "bot", "t": 308, "text": "Watching over the television now instead of the wheelhouse. And Walt, how was he after you both retired?" },
+    { "role": "user", "t": 318, "text": "Um. Not long. He, uh, Walt did not have long. One year. The, the next year, two thousand four, in the fall, October, the, um, the heart. He was sixty-five. And I, you know, I think, I mean I always think, if we don't sell the boat, uh, maybe, you know? A man like that, he needs the, the work. But, well. You cannot know that.", "events": ["e-walt-dies"] },
+    { "role": "bot", "t": 356, "text": "You can't know that, no. It sounds like you still miss him very much. What's one thing about Walt you'd want your grandchildren to know?" },
+    { "role": "user", "t": 368, "text": "That he was, um, he was the funny one. Everybody thinks I am the funny one. No. I just, uh, I just repeat what Walt said." },
+    { "role": "tool", "t": 384, "text": "updateQuestionStatus", "toolName": "updateQuestionStatus", "toolArgs": { "questionId": "q-teo-4", "status": "Completed", "findings": "Bought the Lucinda M. with Walt Pacheco in 1974; they sold her to a company in 2003 when their bodies and the regulations made it too hard. Walt died of a heart condition in October 2004, aged 65." }, "toolResult": "Question updated." },
+    { "role": "bot", "t": 386, "text": "Then they'll be hearing Walt every time you make them laugh. Thank you, Teo. That was a lot to tell. Shall we stop here?" },
+    { "role": "user", "t": 398, "text": "Yeah. Yes. Obrigado." }
+  ]
+}

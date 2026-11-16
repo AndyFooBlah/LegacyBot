@@ -1,6 +1,20 @@
 # BiographyBot evals
 
-## Status
+## What is here (updated 2026-11-15)
+
+| Path | What it is |
+|---|---|
+| `family/` | **The fictional Furtado family**: ground-truth timeline, 7 transcripts, synthetic audio, adversarial cases, a typed seed script. Public and safe to commit. Start with `family/README.md`. |
+| `pii/` | The guard that keeps real families out of this repo: a private denylist built from production, and a scanner for fixtures and for the whole tree. |
+| `groundedness.ts` | Deterministic check that every stored citation resolves. Runs against real data, prints counts only. |
+
+Real recordings, transcripts and memoir text never enter this repository (owner decision, 2026-10-18,
+recorded in `JOURNAL.md`). Evals that need real content run against production or a private corpus and
+print numbers only. Evals that need content you can read, quote and commit use the fictional family.
+
+The overall plan for testing and monitoring is in `docs/testing-and-monitoring-plan.md`.
+
+## Status of the real-data evals (written 2026-09-19)
 
 One eval exists: `groundedness.ts`. It is deterministic, needs no LLM judge,
 and needs no corpus — it checks artifacts the app has already stored.

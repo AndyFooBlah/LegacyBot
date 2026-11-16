@@ -1,0 +1,42 @@
+{
+  "id": "fx-session-teo-01",
+  "dossierId": "fx-dossier-teo",
+  "title": "The house in Capelo and the volcano",
+  "startTime": "2026-03-03T15:02:00Z",
+  "durationSeconds": 505,
+  "expect": {
+    "events": ["e-birth", "e-eruption", "e-roof"],
+    "mustNotInvent": ["the name of the aunt in Horta", "the number of people hurt (nobody was)"],
+    "notes": "First session. Storyteller sets a preferred name. One fuzzy date: the roof fell 'the winter after the volcano started', which is early 1958, not 1957."
+  },
+  "entries": [
+    { "role": "bot", "t": 0, "text": "Hello, Teodoro. I'm so glad to meet you. I'm here to listen to your stories and help your family keep them. Before we start, what would you like me to call you?" },
+    { "role": "user", "t": 14, "text": "Oh. Uh, Teo. Everybody calls me Teo. Nobody says Teodoro except, you know, the doctor." },
+    { "role": "tool", "t": 21, "text": "setPreferredName", "toolName": "setPreferredName", "toolArgs": { "name": "Teo" }, "toolResult": "Preferred name saved." },
+    { "role": "bot", "t": 23, "text": "Teo it is. Your daughter Marisa told me you grew up on Faial, in a place called Capelo. What do you remember about the house you were born in?" },
+    { "role": "user", "t": 36, "text": "Well, it was a small house. Stone, you know, black stone, because everything there is from the volcano, the old ones. Um, two rooms and the kitchen. My father, he had a little vineyard behind, not big, and two cows. I was born there, in the back room, March of forty-one. March twelve. My mother always said it was raining so hard the midwife came with a sack over her head.", "events": ["e-birth"] },
+    { "role": "tool", "t": 68, "text": "recordFact", "toolName": "recordFact", "toolArgs": { "fact": "Born 12 March 1941 in the family's stone house in Capelo, Faial." }, "toolResult": "Fact recorded." },
+    { "role": "bot", "t": 70, "text": "A midwife with a sack over her head in the rain. That's quite an arrival. What was a normal day like for you there as a boy?" },
+    { "role": "user", "t": 82, "text": "Work. Uh, I mean, school a little, in the morning, and then work. You take the cows up, you bring them down. In September we picked the grapes, the whole family, my brother Armando and me and even Graciete, and she was, I don't know, five, six years old, eating more than she picked. My father made the wine in the, um, how do you say, the adega. The cellar. It was not good wine. But it was ours, you know?" },
+    { "role": "bot", "t": 121, "text": "It sounds like everyone had a part. Was Armando older than you?" },
+    { "role": "user", "t": 128, "text": "Five years. He was the serious one." },
+    { "role": "bot", "t": 135, "text": "And then, when you were a teenager, the volcano. Can you tell me how that began for your family?" },
+    { "role": "user", "t": 146, "text": "Let me think. It was the end of September, fifty-seven. I was sixteen. First it was the shaking, days of shaking, little ones, the dishes going like this. And then the sea, uh, the sea started to boil out past the lighthouse. Steam. We all went up the hill to look, and my father said nothing. He just looked. Because he knew, you know, the wind comes from there to our land.", "events": ["e-eruption"] },
+    { "role": "tool", "t": 189, "text": "searchWikipedia", "toolName": "searchWikipedia", "toolArgs": { "question": "Capelinhos eruption 1957 Faial" }, "toolResult": "Capelinhos: a volcanic eruption off the western coast of Faial Island in the Azores, lasting from 27 September 1957 to 24 October 1958. Ash covered farmland in the parishes of Capelo and Praia do Norte, and the lighthouse was partly buried." },
+    { "role": "bot", "t": 192, "text": "That was the Capelinhos eruption, which began on the twenty-seventh of September, 1957, and went on for more than a year. What happened to your father's land?" },
+    { "role": "user", "t": 205, "text": "The ash. It came down like, um, like grey snow, but it does not melt. Every morning you sweep the roof, you sweep the vines, and in the afternoon it is back. The cows had nothing to eat. We sold one and the other one we, well, we ate. And the vines, they just, they were under it. By Christmas you could not see where the rows were.", "events": ["e-eruption"] },
+    { "role": "tool", "t": 244, "text": "reportEmotionalObservation", "toolName": "reportEmotionalObservation", "toolArgs": { "observation": "Voice slowed describing the loss of the vineyard; engaged, not distressed." }, "toolResult": "Noted." },
+    { "role": "bot", "t": 246, "text": "Grey snow that doesn't melt. I can only imagine sweeping it away every morning. Did the house itself hold up?" },
+    { "role": "user", "t": 257, "text": "No. No, the roof came down. That was, uh, the winter after the volcano started, so January. Fifty-eight. In the night. You hear a crack, like a tree, and my mother is shouting and we are all outside in our, you know, in our nightclothes. Nobody was hurt, thank God. Ai, meu Deus. But that was the end of the house. We went to Horta, to my aunt, six of us in her front room.", "events": ["e-roof"] },
+    { "role": "bot", "t": 301, "text": "I'm glad no one was hurt. That must have been frightening, standing outside in the dark. How did your father take it?" },
+    { "role": "user", "t": 312, "text": "He did not talk for two days." },
+    { "role": "bot", "t": 320, "text": "Two days of silence. And after that?" },
+    { "role": "user", "t": 326, "text": "After that he went to the, um, the office in Horta where they had the papers for America. Because the Americans, they made a law for us, for the people of the volcano. My father could not read much. So I read the papers for him. Sixteen, seventeen years old, and I am reading to my father the papers to leave his own land. You know, I think about that. I think about that a lot." },
+    { "role": "tool", "t": 371, "text": "updateQuestionStatus", "toolName": "updateQuestionStatus", "toolArgs": { "questionId": "q-teo-1", "status": "Completed", "findings": "Two-room stone house in Capelo with a small vineyard and two cows. Ash from the 1957 eruption buried the vines; the roof collapsed in January 1958 and the family moved to an aunt's in Horta." }, "toolResult": "Question updated." },
+    { "role": "bot", "t": 373, "text": "Reading those papers aloud to him, at that age. Thank you for telling me that, Teo. Is there one thing from that house you wish you still had?" },
+    { "role": "user", "t": 386, "text": "The table. My mother's table, where she made the bread on Saturday. It was under the roof when it fell. Um. I can smell that bread right now, I mean it, sitting here." },
+    { "role": "bot", "t": 407, "text": "Bread on Saturdays at your mother's table. That's a lovely thing to carry with you. Would you like to keep going, or stop here for today?" },
+    { "role": "user", "t": 419, "text": "I think stop. I am a little tired." },
+    { "role": "bot", "t": 426, "text": "Of course. Thank you, Teo. Next time, if you'd like, we can talk about the crossing to America. Rest well." }
+  ]
+}
