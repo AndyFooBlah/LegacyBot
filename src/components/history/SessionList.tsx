@@ -131,6 +131,7 @@ export const SessionList: React.FC = () => {
                       })
                     : ''}{' '}
                   &middot; {formatDuration(session.durationSeconds)}
+                  {session.mode === 'chat' && <> &middot; written</>}
                 </p>
               </div>
 

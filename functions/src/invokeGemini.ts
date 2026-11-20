@@ -33,6 +33,9 @@ import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { enforceRateLimit } from './rateLimit';
 import { requireFamilyMember } from './membership';
+import { ALLOWED_CONFIG_KEYS, sanitizeFunctionTools } from './brokerConfig';
+
+export { ALLOWED_CONFIG_KEYS, sanitizeFunctionTools };
 
 /**
  * Models the client is allowed to invoke through the proxy. Keep this tight
@@ -57,27 +60,6 @@ const ALLOWED_MODELS = new Set<string>([
   // also hardcodes this id client-side. Shutdown is 2028-05-14 — see #181.
   'gemini-embedding-001',
 ]);
-
-/**
- * The only `config` keys a client may set. Everything else is dropped,
- * silently, before the SDK sees it. Add a key here only after checking it
- * cannot change where the request goes, what credentials it carries, or what
- * the server fetches on the caller's behalf.
- */
-export const ALLOWED_CONFIG_KEYS = [
-  'thinkingConfig',
-  'temperature',
-  'topP',
-  'topK',
-  'seed',
-  'candidateCount',
-  'maxOutputTokens',
-  'stopSequences',
-  'responseMimeType',
-  'responseSchema',
-  'responseJsonSchema',
-  'systemInstruction',
-] as const;
 
 /** Cap output tokens to bound the worst-case cost of a single call. */
 const MAX_OUTPUT_TOKENS_CEILING = 32_768;
@@ -147,8 +129,7 @@ export function buildInvokeGeminiHandler(deps: {
     // `x-goog-api-key: <GEMINI_API_KEY>` to whatever host it names — so a
     // caller who could set it would be handed the production key. Reproduced
     // locally on 2026-11-15 with a dummy key and a loopback server. `tools` is
-    // excluded too: no client needs server-side tools, and they open URL
-    // fetching and extra spend.
+    // not on the list either: see sanitizeFunctionTools below.
     const safeConfig: Record<string, unknown> = {};
     if (config && typeof config === 'object' && !Array.isArray(config)) {
       for (const key of ALLOWED_CONFIG_KEYS) {
@@ -159,6 +140,15 @@ export function buildInvokeGeminiHandler(deps: {
     }
     if (typeof safeConfig.candidateCount === 'number' && safeConfig.candidateCount > 1) {
       safeConfig.candidateCount = 1;
+    }
+    // Function declarations only (written interviews need the interviewer's
+    // tools). The caller's `tools` value is never forwarded: it is rebuilt.
+    const safeTools = sanitizeFunctionTools((config as Record<string, unknown> | undefined)?.tools);
+    if (safeTools) {
+      if (JSON.stringify(safeTools).length + contentsSize > MAX_INPUT_CHARS) {
+        throw new HttpsError('invalid-argument', 'contents plus tool declarations are too large.');
+      }
+      safeConfig.tools = safeTools;
     }
     if (
       typeof safeConfig.maxOutputTokens === 'number' &&

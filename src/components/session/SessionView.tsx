@@ -33,7 +33,7 @@
  */
 
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useFamily, useCurrentRoles } from '../../hooks/useFamily';
 import { useDossier } from '../../hooks/useDossier';
@@ -62,6 +62,10 @@ export const SessionView: React.FC = () => {
   const { familyId, dossierId } = useParams<{ familyId: string; dossierId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  // ?mode=chat opens a written session (#210): same interviewer, no microphone.
+  const [searchParams] = useSearchParams();
+  const isChat = searchParams.get('mode') === 'chat';
+  const [draft, setDraft] = useState('');
   const { family } = useFamily(familyId);
   const { isAdmin } = useCurrentRoles(familyId, user?.uid);
   const {
@@ -129,7 +133,10 @@ export const SessionView: React.FC = () => {
     reconnectSession,
     stopSession,
     flushPartialSession,
+    sendText,
+    isThinking,
   } = useUnifiedSession({
+    mode: isChat ? 'chat' : 'voice',
     familyId: familyId ?? '',
     dossierId: dossierId ?? '',
     storytellerUid: user?.uid ?? '',
@@ -143,7 +150,7 @@ export const SessionView: React.FC = () => {
   });
 
   useEffect(() => {
-    if (status === ConnectionStatus.ERROR && !deviceError && !autoReconnectDone) {
+    if (!isChat && status === ConnectionStatus.ERROR && !deviceError && !autoReconnectDone) {
       // Unexpected disconnect — reconnect without starting a new session.
       // reconnectSession() keeps the existing session ID and transcript so
       // the conversation continues naturally after the brief interruption.
@@ -157,7 +164,7 @@ export const SessionView: React.FC = () => {
     if (status === ConnectionStatus.CONNECTED) {
       setAutoReconnectDone(false); // Reset so the next disconnect auto-reconnects too
     }
-  }, [status, deviceError, autoReconnectDone, reconnectSession]);
+  }, [isChat, status, deviceError, autoReconnectDone, reconnectSession]);
 
   // Stamp the session start the first time we reach CONNECTED. A reconnection
   // passes back through CONNECTED but the ref is already set, so the clock
@@ -189,6 +196,16 @@ export const SessionView: React.FC = () => {
     setElapsedSec(0);
     startSession();
   }, [startSession]);
+
+  // Written sessions: send the draft. The box is cleared at once so the message
+  // is not shown twice, and put back if the interviewer could not answer.
+  const handleSend = useCallback(async () => {
+    const text = draft.trim();
+    if (!text || isThinking) return;
+    setDraft('');
+    const answered = await sendText(text);
+    if (!answered) setDraft(text);
+  }, [draft, isThinking, sendText]);
 
   if (dossierLoading || !dossier) {
     return (
@@ -250,9 +267,13 @@ export const SessionView: React.FC = () => {
               </p>
               <p className="text-xs text-slate-400 truncate">
                 {isConnected
-                  ? isBotSpeaking
-                    ? 'Speaking…'
-                    : `Listening to ${dossier.storytellerName}…`
+                  ? isChat
+                    ? isThinking
+                      ? 'Writing a reply…'
+                      : `Written conversation with ${dossier.storytellerName}`
+                    : isBotSpeaking
+                      ? 'Speaking…'
+                      : `Listening to ${dossier.storytellerName}…`
                   : isConnecting
                     ? messages.length > 0
                       ? 'Reconnecting…'
@@ -265,7 +286,12 @@ export const SessionView: React.FC = () => {
           <div className="flex-1" />
 
           {/* Live recording indicator + elapsed recorded time */}
-          {isActive && (
+          {isActive && isChat && (
+            <span className="shrink-0 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full text-xs font-semibold text-slate-500">
+              Not recorded
+            </span>
+          )}
+          {isActive && !isChat && (
             <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full">
               <div className={`w-2 h-2 bg-rose-500 rounded-full ${isConnected ? 'animate-pulse' : ''}`} />
               <span className="text-xs font-bold text-rose-600 tabular-nums" aria-label="Recorded time">
@@ -277,7 +303,7 @@ export const SessionView: React.FC = () => {
           {/* Call-to-action next to the start button (idle only) */}
           {!isActive && (
             <span className="shrink-0 text-sm font-semibold text-green-700 whitespace-nowrap">
-              Press to start recording
+              {isChat ? 'Press to start writing' : 'Press to start recording'}
             </span>
           )}
 
@@ -287,7 +313,7 @@ export const SessionView: React.FC = () => {
               onClick={handleStart}
               disabled={isConnecting}
               className="shrink-0 w-12 h-12 bg-green-500 rounded-full text-white shadow-lg hover:bg-green-600 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
-              aria-label="Start a conversation"
+              aria-label={isChat ? 'Start a written conversation' : 'Start a conversation'}
             >
               {isConnecting ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
@@ -339,9 +365,54 @@ export const SessionView: React.FC = () => {
         <TranscriptFeed
           messages={messages}
           sessionId={sessionId}
-          listening={isConnected && !isBotSpeaking && messages.length > 0}
+          listening={!isChat && isConnected && !isBotSpeaking && messages.length > 0}
         />
       </div>
+
+      {/* Written session composer (#210) */}
+      {isChat && isConnected && (
+        <div className="shrink-0 px-4 pb-4">
+          <div className="mx-auto w-full max-w-3xl">
+            {isThinking && (
+              <p className="text-sm text-slate-400 italic mb-2" aria-live="polite">
+                {dossier.selectedVoice} is writing…
+              </p>
+            )}
+            {deviceError && (
+              <p role="alert" className="text-sm text-rose-600 mb-2">{deviceError}</p>
+            )}
+            <form
+              onSubmit={(e) => { e.preventDefault(); void handleSend(); }}
+              className="flex items-end gap-3 bg-white rounded-3xl shadow-lg border border-slate-100 p-3"
+            >
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    void handleSend();
+                  }
+                }}
+                rows={3}
+                placeholder="Write your answer here. Take as long as you like."
+                aria-label="Your message"
+                className="flex-1 resize-none bg-transparent text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 focus:outline-none px-2 py-1"
+              />
+              <button
+                type="submit"
+                disabled={isThinking || !draft.trim()}
+                className="shrink-0 px-5 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-40"
+              >
+                Send
+              </button>
+            </form>
+            <p className="text-xs text-slate-400 mt-2 text-center">
+              Your words are saved as you send them. Nothing is recorded. Press Enter to send, Shift+Enter for a new line.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Prompt photo display */}
       {activePhoto && (
@@ -375,7 +446,7 @@ export const SessionView: React.FC = () => {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-slate-800">
-              Session Stopped
+              {isChat ? "Couldn't start" : 'Session Stopped'}
             </h2>
             <p className="text-slate-500">
               {deviceError}

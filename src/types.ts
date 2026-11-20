@@ -263,6 +263,10 @@ export interface SessionMetadata {
   audioUrl: string; // GCS object PATH ({familyId}/{dossierId}/{sessionId}.webm), not a URL; clients mint a signed URL via getMediaUrl
   status: SessionStatus;
   durationSeconds: number;
+  /** How the session was held (#210). Absent means 'voice'. A 'chat' session
+   *  was typed: it has no recording, `audioUrl` is empty, and its transcript
+   *  is the storyteller's own writing rather than a transcription. */
+  mode?: 'voice' | 'chat';
   /** Set once the offline transcript-refinement pass has run (#123). Its
    *  presence makes refinement idempotent. Details live in the
    *  `analysis/refinement` subdoc. */
@@ -287,6 +291,8 @@ export interface TranscriptEntry {
   role: 'user' | 'bot' | 'tool';
   text: string;         // current (display) text
   cleanText?: string;   // AI-cleaned version (corrected transcription errors, removed fillers)
+  /** How these words arrived (#210). Absent means spoken and transcribed. */
+  source?: 'spoken' | 'typed';
   timestamp: Timestamp;
   messageIndex?: number;   // 0-based position in the session transcript
   originalText?: string;   // original AI transcription, set on first edit

@@ -52,6 +52,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import type { FunctionDeclaration } from '@google/genai';
 import { Timestamp } from 'firebase/firestore';
 import { useSession } from '@andyfooblah/voice-common';
+import { useTextSession } from './useTextSession';
 import {
   searchWikipedia,
   getTimeDifference,
@@ -90,9 +91,24 @@ export interface UseUnifiedSessionOptions {
   onQuestionUpdate: (id: string, status: string, findings?: string) => void;
   onShowPhoto?: (photoId: string) => void;
   onPreferredNameUpdate?: (name: string) => void;
+  /**
+   * 'voice' (default) is a spoken session over the live audio connection.
+   * 'chat' is a written session (#210): the same interviewer, instruction,
+   * tools and post-session analysis, over a text transport. No microphone,
+   * no recording.
+   */
+  mode?: SessionMode;
 }
 
+export type SessionMode = 'voice' | 'chat';
+
 export interface UseUnifiedSessionReturn {
+  /** Which transport this session uses. */
+  mode: SessionMode;
+  /** Written sessions only: send the storyteller's message. False means it was not answered; keep the draft. */
+  sendText: (text: string) => Promise<boolean>;
+  /** Written sessions only: the interviewer is composing a reply. */
+  isThinking: boolean;
   status: ConnectionStatus;
   messages: Message[];
   isBotSpeaking: boolean;
@@ -122,6 +138,7 @@ export function useUnifiedSession({
   onQuestionUpdate,
   onShowPhoto,
   onPreferredNameUpdate,
+  mode = 'voice',
 }: UseUnifiedSessionOptions): UseUnifiedSessionReturn {
   // Family-scoped Firestore collection path — all session docs, transcript
   // subcollections, and finalization calls go under this prefix.
@@ -485,14 +502,28 @@ export function useUnifiedSession({
     ...buildSessionLiveOptions(dossier),
   });
 
+  // Written sessions (#210) use a text transport with the same contract, so
+  // everything above (tools, handlers) and below (instruction, analysis) is
+  // shared. Both hooks are always mounted, as the rules of hooks require; the
+  // one not in use stays idle and opens nothing.
+  const textSession = useTextSession({
+    userId: storytellerUid,
+    tools,
+    sessionsCollection,
+    additionalSessionData: { storytellerUid },
+    onToolCall,
+    onSessionEnd,
+  });
+  const session = mode === 'chat' ? textSession : vcSession;
+
   // Keep messagesLatestRef and sessionIdForAnalysisRef up to date
   useEffect(() => {
-    messagesLatestRef.current = vcSession.messages;
-  }, [vcSession.messages]);
+    messagesLatestRef.current = session.messages;
+  }, [session.messages]);
 
   useEffect(() => {
-    if (vcSession.sessionId) sessionIdForAnalysisRef.current = vcSession.sessionId;
-  }, [vcSession.sessionId]);
+    if (session.sessionId) sessionIdForAnalysisRef.current = session.sessionId;
+  }, [session.sessionId]);
 
   // ---------------------------------------------------------------------------
   // Wrapped startSession — loads context then calls VC with override params
@@ -587,8 +618,8 @@ export function useUnifiedSession({
         `familyTree=${(familyTreeRef.current ?? d.familyTree ?? []).length} members)`,
     );
 
-    await vcSession.startSession(systemInstruction, greetingTrigger);
-  }, [vcSession]); // eslint-disable-line react-hooks/exhaustive-deps
+    await session.startSession(systemInstruction, greetingTrigger);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // familyTree also needs a ref so it's available in the startSession callback
   const familyTreeRef = useRef(familyTree);
@@ -623,20 +654,23 @@ export function useUnifiedSession({
   // strings so the cast is safe. COMPLETED is added when onSessionEnd fires.
   const status: ConnectionStatus = sessionCompleted
     ? ConnectionStatus.COMPLETED
-    : (vcSession.connectionStatus as unknown as ConnectionStatus);
+    : (session.connectionStatus as unknown as ConnectionStatus);
 
   return {
     status,
-    messages: vcSession.messages,
+    mode,
+    sendText: textSession.sendText,
+    isThinking: mode === 'chat' && textSession.isThinking,
+    messages: session.messages,
     isBotSpeaking,
-    sessionId: vcSession.sessionId,
-    deviceError: vcSession.error,
+    sessionId: session.sessionId,
+    deviceError: session.error,
     connectivityWarning,
     clearDeviceError,
     dismissConnectivityWarning,
     startSession,
     reconnectSession,
-    stopSession: vcSession.stopSession,
+    stopSession: session.stopSession,
     flushPartialSession,
   };
 }

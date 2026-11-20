@@ -324,7 +324,9 @@ export const TranscriptViewer: React.FC = () => {
       )}
       {session && !session.audioUrl && (
         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-400 italic text-center">
-          Audio not available for this session.
+          {session.mode === 'chat'
+            ? 'This was a written conversation. These are the storyteller’s own typed words; there is no recording.'
+            : 'Audio not available for this session.'}
         </div>
       )}
 

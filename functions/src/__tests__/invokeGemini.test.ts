@@ -150,6 +150,44 @@ describe('invokeGemini', () => {
     expect(passed.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
   });
 
+  it('accepts function declarations and nothing else from a caller-supplied tools array', async () => {
+    const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
+    mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });
+    await handler({
+      auth: { uid: 'u1' },
+      data: {
+        model: 'gemini-3.8-flash',
+        contents: 'hi',
+        config: {
+          tools: [
+            { googleSearch: {} },
+            { urlContext: {} },
+            { codeExecution: {} },
+            {
+              googleSearch: {},
+              functionDeclarations: [
+                { name: 'recordFact', description: 'Record a fact', parameters: { type: 'object', properties: { fact: { type: 'string' } } }, behavior: 'NON_BLOCKING' },
+                { name: 'bad name with spaces', description: 'x' },
+                { description: 'no name' },
+              ],
+            },
+          ],
+        },
+      },
+    } as never);
+    expect(lastConfig().tools).toEqual([
+      { functionDeclarations: [{ name: 'recordFact', description: 'Record a fact', parameters: { type: 'object', properties: { fact: { type: 'string' } } } }] },
+    ]);
+    expect(JSON.stringify(lastConfig())).not.toMatch(/googleSearch|urlContext|codeExecution|NON_BLOCKING/);
+  });
+
+  it('drops tools entirely when no valid function declaration is present', async () => {
+    const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
+    mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });
+    await handler({ auth: { uid: 'u1' }, data: { model: 'gemini-3.8-flash', contents: 'hi', config: { tools: [{ googleSearch: {} }] } } } as never);
+    expect(lastConfig().tools).toBeUndefined();
+  });
+
   it('ignores a config that is not a plain object', async () => {
     const handler = buildInvokeGeminiHandler({ apiKey: () => 'fake-key' });
     mockGenerateContent.mockResolvedValue({ text: 'ok', candidates: [] });

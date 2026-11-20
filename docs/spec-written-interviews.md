@@ -1,6 +1,49 @@
 # Spec: written interviews (chat in the app, or by email)
 
-Status: **draft for owner review**, 2026-11-15. Tracks issue #210.
+Status: **chat is built and live (2026-11-19); email is deferred.** Tracks issue #210.
+
+## What exists as of 2026-11-19
+
+Owner, 2026-11-19: "Let's implement both email and chat interview mechanisms if they're both easy. If
+either requires me to take manual steps then that can be deferred."
+
+**Chat is shipped.** A storyteller presses "I'd rather write" on their home screen (or opens the session
+page with `?mode=chat`) and has the same interview in writing.
+
+**It was built more simply than this spec proposed, and the difference matters for email.** The spec
+below puts the interviewer on the server ("The shared engine"). Chat did not need that: the voice session
+hook's contract with its transport is seven fields, so chat is a second transport behind the same hook
+(`src/hooks/useTextSession.ts`, with the pure turn loop in `src/services/textInterview.ts`). The
+interviewer's instruction, its tools and their handlers, and the post-session analysis are the existing
+ones, untouched; only a short "this conversation is typed" section is appended to the instruction. The
+model is reached through the existing broker, which now accepts function declarations and rebuilds them
+rather than forwarding the caller's array.
+
+What that bought: chat in a day, with nothing about the interviewer duplicated. What it did not buy:
+the interviewer still lives in the browser, and email has no browser. **Email still needs the server-side
+engine described below**, and the instruction builder and tool handlers moved to where a function can run
+them. That is the larger half of the email work and it is not started.
+
+Differences from the chat section below, as built:
+
+- Leaving the screen ends the session, as it does for voice. "Continue later" and saved drafts are not built.
+- A message that cannot be answered goes back into the box with a plain notice; nothing is lost or sent twice.
+- Lookup tools (encyclopedia, maps, weather) work in chat exactly as in voice, since the handlers are shared.
+- Session records carry `mode: 'chat'` and typed turns carry `source: 'typed'`. History shows "written".
+  There is no recording, and the server skips audio refinement for a session without one.
+
+Tested: 20 unit tests on the turn loop and the transport, 8 on the screen, and a live suite
+(`src/__tests__/live/chatInterview.live.test.ts`) that holds a real written interview with the fictional
+Teo Furtado, using the production instruction and tools and the Cloud Functions copy of the SDK: the
+interviewer opens in writing, takes his preferred name through a tool call, keeps going across turns with
+tool calls in the history, drops a declined topic, and ends when he says he is tired.
+
+**Not yet exercised:** the callable itself with a signed-in family member typing in a browser. The first
+real session is that test.
+
+**Email is deferred** because it needs things only the owner can do: a mailbox on the domain, DNS records
+for signing mail, and a decision about storytellers who never sign in. Those are explained in plain terms
+in the session notes of 2026-11-19 and in "Decisions for the owner" below.
 
 Owner, in #210: "extend biographybot with written interactive interview style (chat in app or via email)
 for people who don't like spoken dialog." And on 2026-11-15: "doing email-based or text chat based
