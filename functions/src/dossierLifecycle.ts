@@ -253,10 +253,14 @@ export async function purgeDossier(
   // 2. Every Storage object under the dossier prefix (recordings, media,
   //    clips, prompt photos, exports).
   const prefix = dossierStoragePrefix(familyId, dossierId);
-  const [files] = await bucket.getFiles({ prefix });
+  //    The bucket keeps old versions of overwritten and deleted objects (so
+  //    an accident is recoverable), which means a purge has to name every
+  //    version explicitly or the "deleted" data would live on as noncurrent
+  //    versions for another 90 days. `versions: true` does that.
+  const [files] = await bucket.getFiles({ prefix, versions: true });
   summary.objectsDeleted = files.length;
   if (files.length > 0) {
-    await bucket.deleteFiles({ prefix, force: true });
+    await bucket.deleteFiles({ prefix, force: true, versions: true });
   }
 
   // 3. The Firestore subtree (dossier doc + all subcollections).

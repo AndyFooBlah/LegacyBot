@@ -168,9 +168,11 @@ service cloud.firestore {
         }
 
         // --- Events (extracted from transcripts) ---
+        // Only a family admin may delete. A storyteller's own session writes
+        // and edits events (create, update) but cannot remove them.
         match /events/{eventId} {
           allow read, write: if isFamilyAdmin(familyId);
-          allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+          allow read, create, update: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
         }
 
         // --- Audio clips ---
@@ -220,15 +222,17 @@ service cloud.firestore {
           allow update: if isFamilyStoryteller(familyId) && resource.data.storytellerUid == request.auth.uid;
 
           // --- Transcript ---
+          // Deleting a transcript is admin-only. The storyteller's client
+          // writes it turn by turn (create, update) and never removes it.
           match /transcript/{docId} {
             allow read, write: if isFamilyAdmin(familyId);
-            allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+            allow read, create, update: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
           }
 
           // --- Post-session analysis (engagement, suggestions) ---
           match /analysis/{docId} {
             allow read, write: if isFamilyAdmin(familyId);
-            allow read, write: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
+            allow read, create, update: if isFamilyStoryteller(familyId) && isOwnDossier(familyId, dossierId);
           }
         }
       }
@@ -253,6 +257,17 @@ service cloud.firestore {
     // Written exclusively by the daily purge in Cloud Functions. Never
     // client-readable: rows name deleted dossiers across all families.
     match /purgeLog/{entryId} {
+      allow read, write: if false;
+    }
+
+    // --- Sign-up gate (functions/src/signupGate.ts) ---
+    // Server only. `signupAllowances` lets an address create an account when
+    // sign-up codes are in use (nothing writes it today); `signupRefusals`
+    // records accounts the gate disabled.
+    match /signupAllowances/{id} {
+      allow read, write: if false;
+    }
+    match /signupRefusals/{uid} {
       allow read, write: if false;
     }
 

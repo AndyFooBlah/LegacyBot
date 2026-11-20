@@ -97,6 +97,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         'auth/weak-password': 'Password must be at least 6 characters.',
         'auth/invalid-email': 'Please enter a valid email address.',
         'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+        // The sign-up gate (functions/src/signupGate.ts) disables any account whose
+        // address was not invited. This is what such a person sees next time.
+        'auth/user-disabled': "This email address hasn't been invited. BiographyBot is invitation-only: ask your family's admin to invite this exact address, then sign in again.",
       };
       setError(friendlyMessages[err.code] ?? err.message ?? 'Authentication failed.');
     } finally {
@@ -219,10 +222,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <p className="text-sm text-slate-400 text-center">
           {mode === 'signin' ? (
             <>
-              New here?{' '}
+              Invited by your family?{' '}
               <button onClick={switchMode} className="text-indigo-600 font-semibold hover:text-indigo-700">
                 Create an account
               </button>
+              <span className="block mt-1 text-xs text-slate-400">
+                BiographyBot is invitation-only. Use the email address your invitation was sent to.
+              </span>
             </>
           ) : (
             <>

@@ -33,6 +33,7 @@ import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { enforceRateLimit } from './rateLimit';
 import { LIVE_TOKEN_API_VERSION, buildLiveTokenRequest } from './liveTokenConfig';
+import { requireFamilyMember } from './membership';
 
 export interface MintGeminiLiveTokenResponse {
   /** Ephemeral token string to pass as the `apiKey` field on the client Live connect. */
@@ -45,10 +46,9 @@ export function buildMintGeminiLiveTokenHandler(deps: {
   apiKey: () => string;
 }) {
   return async (request: CallableRequest): Promise<MintGeminiLiveTokenResponse> => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Sign-in required.');
-    }
-    await enforceRateLimit(request.auth.uid, 'mintGeminiLiveToken');
+    // Invitation-only: a signed-in account with no family may not mint a token.
+    const uid = await requireFamilyMember(request);
+    await enforceRateLimit(uid, 'mintGeminiLiveToken');
 
     const apiKey = deps.apiKey();
     if (!apiKey) {

@@ -51,34 +51,44 @@ service firebase.storage {
       return request.resource.size < megabytes * 1024 * 1024;
     }
 
+    // --- Deletion ---------------------------------------------------------
+    // No client may delete anything in this bucket, admin or not. Recordings
+    // are the one thing here that cannot be regenerated, and the app has no
+    // feature that deletes an object from the browser. Removal happens only
+    // on the server: a family admin soft-deletes a dossier, and the daily
+    // purge removes its files 30 days later (functions/src/dossierLifecycle.ts).
+    // The bucket also keeps prior versions for 90 days and deleted objects for
+    // 30, and everything is copied daily to a bucket in another project
+    // (functions/src/backupRecordings.ts). Recovery: DEPLOYMENT.md.
+
     // --- Session audio recordings (depth-3: {familyId}/{dossierId}/{file}) ---
     // A single file at the dossier root is always a session audio recording
     // (audio/webm; 500 MB allows for multi-hour interviews).
     match /{familyId}/{dossierId}/{filename} {
       allow read: if isFamilyMember(familyId);
       allow write: if isFamilyMember(familyId) && isAudio() && maxSize(500);
-      allow delete: if isFamilyMember(familyId);
+      allow delete: if false; // server only — see "Deletion" note above
     }
 
     // --- Uploaded media (images only, 50 MB max) ---
     match /{familyId}/{dossierId}/media/{mediaId} {
       allow read: if isFamilyMember(familyId);
       allow write: if isFamilyMember(familyId) && isImage() && maxSize(50);
-      allow delete: if isFamilyMember(familyId);
+      allow delete: if false; // server only — see "Deletion" note above
     }
 
     // --- Audio clips (extracted segments, audio/webm, 100 MB max) ---
     match /{familyId}/{dossierId}/clips/{clipId} {
       allow read: if isFamilyMember(familyId);
       allow write: if isFamilyMember(familyId) && isAudio() && maxSize(100);
-      allow delete: if isFamilyMember(familyId);
+      allow delete: if false; // server only — see "Deletion" note above
     }
 
     // --- Prompt photos (memory-jogging images shown during sessions) ---
     match /{familyId}/{dossierId}/promptPhotos/{photoId} {
       allow read: if isFamilyMember(familyId);
       allow write: if isFamilyMember(familyId) && isImage() && maxSize(50);
-      allow delete: if isFamilyMember(familyId);
+      allow delete: if false; // server only — see "Deletion" note above
     }
 
     // --- Generated memoir files (PDF / DOCX written by memoir generation) ---

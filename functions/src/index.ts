@@ -67,6 +67,7 @@ import { parseMediaPathFamilyId, isSessionAudioPath } from './mediaPath';
 import { buildCacheWikipediaArticleHandler } from './cacheWikipedia';
 import { buildMintGeminiLiveTokenHandler } from './liveToken';
 import { buildInvokeGeminiHandler } from './invokeGemini';
+import { requireFamilyMember } from './membership';
 import { buildEmbedGeminiHandler } from './embedGemini';
 import { fetchWithTimeout, FetchTimeoutError, TIMEOUTS } from './httpTimeouts';
 import {
@@ -78,6 +79,8 @@ import {
 } from './dossierLifecycle';
 
 export { dailyStorageCleanup } from './scheduledCleanup';
+export { dailyRecordingsBackup } from './backupRecordings';
+export { onAuthUserCreated } from './signupGate';
 
 initializeApp();
 
@@ -780,6 +783,7 @@ export const geoProxy = onCall(
   { secrets: [googleMapsApiKey] },
   async (request: CallableRequest) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Authentication required.');
+  await requireFamilyMember(request);
   await enforceRateLimit(request.auth.uid, 'geoProxy');
 
   const key = googleMapsApiKey.value();
@@ -1761,6 +1765,7 @@ async function verifyFamilyMember(
 export const cacheWikipediaArticle = onCall(
   { secrets: [geminiApiKey], timeoutSeconds: 60 },
   buildCacheWikipediaArticleHandler({
+    requireMember: requireFamilyMember,
     apiKey: () => geminiApiKey.value(),
     enforceRateLimit: (uid) => enforceRateLimit(uid, 'cacheWikipediaArticle'),
   }),

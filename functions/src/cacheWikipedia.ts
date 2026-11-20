@@ -129,11 +129,14 @@ async function embedChunks(texts: string[], apiKey: string): Promise<number[][]>
 export function buildCacheWikipediaArticleHandler(opts: {
   apiKey: () => string;
   enforceRateLimit: (uid: string) => Promise<void>;
+  /** Refuses callers who belong to no family (membership.ts). Injected for the same reason as enforceRateLimit. */
+  requireMember: (request: CallableRequest) => Promise<string>;
 }) {
   return async (request: CallableRequest): Promise<CacheWikipediaArticleResult> => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
+    await opts.requireMember(request);
 
     const { title } = (request.data ?? {}) as CacheWikipediaArticleInput;
     if (typeof title !== 'string' || title.length === 0 || title.length > 300) {

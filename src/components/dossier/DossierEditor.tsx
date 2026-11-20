@@ -730,9 +730,12 @@ export const DossierEditor: React.FC = () => {
                 analysed for follow-up questions and indexed for the family's search.
               </li>
               <li>
-                <strong>Nothing is deleted by accident.</strong> Deleting a dossier hides it and locks new
-                sessions; after {RETENTION_DAYS} days everything is permanently erased unless an admin
-                restores it. You can export a full copy at any time.
+                <strong>Nothing is deleted by accident.</strong> Only a family admin can delete, and
+                deleting a dossier hides it and locks new sessions; after {RETENTION_DAYS} days everything
+                is permanently erased unless an admin restores it. Recordings are also copied daily to a
+                separate backup, so a mistake or a fault cannot destroy them; backup copies of erased
+                material are themselves removed within a further 90 days. You can export a full copy at
+                any time.
               </li>
             </ul>
           </div>

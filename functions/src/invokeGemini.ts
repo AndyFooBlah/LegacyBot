@@ -32,6 +32,7 @@ import { GoogleGenAI } from '@google/genai';
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { enforceRateLimit } from './rateLimit';
+import { requireFamilyMember } from './membership';
 
 /**
  * Models the client is allowed to invoke through the proxy. Keep this tight
@@ -113,10 +114,8 @@ export function buildInvokeGeminiHandler(deps: {
   apiKey: () => string;
 }) {
   return async (request: CallableRequest): Promise<InvokeGeminiResponse> => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Sign-in required.');
-    }
-    const uid = request.auth.uid;
+    // Invitation-only: a signed-in account with no family may not use the key.
+    const uid = await requireFamilyMember(request);
     await enforceRateLimit(uid, 'invokeGemini');
 
     const { model, contents, config } = (request.data ?? {}) as Partial<InvokeGeminiRequest>;

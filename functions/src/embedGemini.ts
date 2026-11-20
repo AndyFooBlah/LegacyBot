@@ -25,6 +25,7 @@ import { GoogleGenAI } from '@google/genai';
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { logger } from 'firebase-functions';
 import { enforceRateLimit } from './rateLimit';
+import { requireFamilyMember } from './membership';
 
 const ALLOWED_MODELS = new Set<string>(['gemini-embedding-001']);
 
@@ -42,10 +43,8 @@ export interface EmbedGeminiResponse {
 
 export function buildEmbedGeminiHandler(deps: { apiKey: () => string }) {
   return async (request: CallableRequest): Promise<EmbedGeminiResponse> => {
-    if (!request.auth) {
-      throw new HttpsError('unauthenticated', 'Sign-in required.');
-    }
-    const uid = request.auth.uid;
+    // Invitation-only: a signed-in account with no family may not use the key.
+    const uid = await requireFamilyMember(request);
     await enforceRateLimit(uid, 'embedGemini');
 
     const { model, contents } = (request.data ?? {}) as Partial<EmbedGeminiRequest>;

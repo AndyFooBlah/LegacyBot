@@ -39,6 +39,16 @@ vi.mock('@google/genai', () => ({
 }));
 
 // Mock rate limiting
+vi.mock('../membership', async () => {
+  const { HttpsError } = await import('firebase-functions/v2/https');
+  return {
+    // Membership itself is tested in membership.test.ts; here every signed-in caller is a member.
+    requireFamilyMember: vi.fn(async (request: { auth?: { uid: string } }) => {
+      if (!request.auth) throw new HttpsError('unauthenticated', 'Sign-in required.');
+      return request.auth.uid;
+    }),
+  };
+});
 vi.mock('../rateLimit', () => ({
   enforceRateLimit: vi.fn().mockResolvedValue(undefined),
 }));

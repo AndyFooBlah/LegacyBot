@@ -331,6 +331,9 @@ Gemini transcription → useSession → Firestore transcript/entries (kept until
 
 Family data, dossiers, events, memoirs → Firestore (soft-delete → 30-day restore window → audited purge)
 
+Recordings and media → Cloud Storage (no client can delete; prior versions kept 90 days, deleted objects 30 days)
+                     → daily copy to a bucket in a separate project and region (create-only; copies expire after 90 days)
+
 User accounts → Firebase Authentication (US only)
 ```
 
